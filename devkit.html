@@ -374,7 +374,7 @@
 
     const buildPanel = document.createElement("div");
     buildPanel.className = "panel";
-    buildPanel.innerHTML = `<h3>human → cron</h3><div id="cronBuilderOpts"></div><div class="actions"><button class="primary" id="cronBuildBtn">Build</button></div><div id="cronBuildResult"></div>`;
+    buildPanel.innerHTML = `<h3>human → cron</h3><div id="cronBuilderOpts"></div><div id="cronBuiltDisplay"></div>`;
     root.appendChild(buildPanel);
 
     const PRESETS = {
@@ -424,19 +424,20 @@
             if (String(val) === String(values[preset][f.key])) o.selected = true;
             input.appendChild(o);
           });
-          input.addEventListener("change", () => values[preset][f.key] = input.value);
+          input.addEventListener("change", () => { values[preset][f.key] = input.value; updateBuiltDisplay(); });
         } else if (f.type === "number") {
           input = document.createElement("input"); input.type = "number"; input.min = f.min; input.max = f.max;
           input.value = values[preset][f.key];
-          input.addEventListener("change", () => values[preset][f.key] = input.value);
+          input.addEventListener("input", () => { values[preset][f.key] = input.value; updateBuiltDisplay(); });
         } else {
           input = document.createElement("input"); input.type = "text"; input.value = values[preset][f.key];
           input.style.width = "70px";
-          input.addEventListener("input", () => values[preset][f.key] = input.value);
+          input.addEventListener("input", () => { values[preset][f.key] = input.value; updateBuiltDisplay(); });
         }
         fieldsRow.appendChild(l); fieldsRow.appendChild(input);
       });
       el.appendChild(fieldsRow);
+      updateBuiltDisplay();
     }
 
     function runDecode() {
@@ -465,28 +466,51 @@
       }
     }
 
-    function runBuild() {
+    function updateBuiltDisplay() {
       const cron = buildCronFromPreset(preset, values[preset]);
-      const result = document.getElementById("cronBuildResult");
+      const parsed = humanizeCron(cron);
+      const result = document.getElementById("cronBuiltDisplay");
       result.innerHTML = "";
-      const line = document.createElement("div");
-      line.className = "row";
-      line.style.marginTop = "6px";
-      const box = document.createElement("div");
-      box.className = "result";
-      box.style.flex = "1";
-      box.textContent = cron;
-      const copyBtn = makeCopyBtn(() => cron);
-      const sendBtn = document.createElement("button");
-      sendBtn.className = "ghost"; sendBtn.textContent = "↑ decode this";
-      sendBtn.addEventListener("click", () => { document.getElementById("cronInput").value = cron; runDecode(); window.scrollTo({top: decodePanel.offsetTop - 12, behavior: "smooth"}); });
-      line.appendChild(box); line.appendChild(copyBtn); line.appendChild(sendBtn);
-      result.appendChild(line);
+
+      const row = document.createElement("div");
+      row.className = "row";
+      row.style.alignItems = "center";
+      row.style.borderTop = "1px solid var(--border)";
+      row.style.paddingTop = "14px";
+      row.style.marginTop = "2px";
+
+      const code = document.createElement("code");
+      code.textContent = cron;
+      code.style.fontFamily = "var(--mono)";
+      code.style.fontSize = "20px";
+      code.style.color = "var(--accent)";
+      code.style.letterSpacing = "0.02em";
+
+      const human = document.createElement("span");
+      human.className = "meta";
+      human.style.marginTop = "0";
+      human.textContent = parsed.sentence || "";
+
+      const btn = document.createElement("button");
+      btn.className = "ghost";
+      btn.style.marginLeft = "auto";
+      btn.dataset.label = "copy & decode →";
+      btn.textContent = "copy & decode →";
+      btn.addEventListener("click", () => {
+        copyText(cron, btn);
+        document.getElementById("cronInput").value = cron;
+        runDecode();
+        window.scrollTo({ top: decodePanel.offsetTop - 12, behavior: "smooth" });
+      });
+
+      row.appendChild(code);
+      row.appendChild(human);
+      row.appendChild(btn);
+      result.appendChild(row);
     }
 
     document.getElementById("cronDecodeBtn").addEventListener("click", runDecode);
     document.getElementById("cronInput").addEventListener("keydown", e => { if (e.key === "Enter") runDecode(); });
-    document.getElementById("cronBuildBtn").addEventListener("click", runBuild);
 
     renderBuilderOpts();
     document.getElementById("cronInput").value = "0 9 * * 1-5";
