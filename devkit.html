@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>devkit — cron / base64 / json·xml / markdown</title>
+<meta name="description" content="Cron expression humanizer (both directions), Base64 encode/decode, JSON/XML formatter, Markdown viewer. Runs entirely in your browser.">
+<style>
+  :root {
+    --bg: #12151a;
+    --panel: #191d24;
+    --border: #262b34;
+    --border-active: #3a4250;
+    --text: #dde2e8;
+    --text-dim: #6f7787;
+    --text-faint: #4b5262;
+    --accent: #62b891;
+    --accent-dim: #3c6e57;
+    --danger: #d97070;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+
+  .toolset-nav {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .toolset-nav a {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 10px;
+  }
+  .toolset-nav a:hover { color: var(--text); border-color: var(--border-active); }
+  .toolset-nav a.active { color: var(--accent); border-color: var(--accent-dim); background: rgba(98, 184, 145, 0.07); }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--mono); -webkit-font-smoothing: antialiased; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 16px 60px; }
+  .wrap { width: 100%; max-width: 680px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  header .name { font-size: 15px; font-weight: 600; }
+  header .name .dot { color: var(--accent); }
+  header .tag { font-size: 12px; color: var(--text-faint); }
+
+  nav.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  nav.tools button {
+    font-family: var(--mono); font-size: 13px; background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 3px; padding: 8px 14px; cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  nav.tools button:hover { border-color: var(--border-active); color: var(--text); }
+  nav.tools button.active { color: var(--accent); border-color: var(--accent-dim); background: rgba(98,184,145,0.07); }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 16px; margin-bottom: 14px; }
+  .panel h3 { margin: 0 0 12px; font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: none; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; font-size: 13px; margin-bottom: 10px; }
+  .row label { color: var(--text-dim); white-space: nowrap; }
+  .row select, .row input[type="number"], .row input[type="text"] {
+    font-family: var(--mono); font-size: 13px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px;
+  }
+  .row input[type="number"] { width: 64px; }
+  .row.checkbox { cursor: pointer; user-select: none; }
+  .row.checkbox input { accent-color: var(--accent); }
+
+  textarea {
+    width: 100%; font-family: var(--mono); font-size: 13px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 3px; padding: 10px; resize: vertical; line-height: 1.5;
+  }
+  textarea.input-area { min-height: 110px; }
+  textarea.output-area { min-height: 90px; }
+
+  .actions { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+  button.primary {
+    font-family: var(--mono); font-size: 13px; font-weight: 600; background: var(--accent-dim); color: #d9f2e6;
+    border: 1px solid var(--accent); border-radius: 3px; padding: 9px 16px; cursor: pointer;
+  }
+  button.primary:hover { background: var(--accent); color: #0d1310; }
+  button.ghost {
+    font-family: var(--mono); font-size: 13px; background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 3px; padding: 9px 14px; cursor: pointer;
+  }
+  button.ghost:hover { border-color: var(--border-active); color: var(--text); }
+  button.copy {
+    font-family: var(--mono); font-size: 11px; background: transparent; color: var(--text-faint);
+    border: 1px solid var(--border); border-radius: 3px; padding: 5px 8px; cursor: pointer;
+  }
+  button.copy:hover { color: var(--accent); border-color: var(--accent-dim); }
+  button.copy.copied { color: var(--accent); }
+
+  .result { padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; font-size: 14px; line-height: 1.7; }
+  .result.sentence { color: var(--accent); font-size: 15px; }
+  .result.err { color: var(--danger); border-color: #4a2c2c; }
+
+  table.fields { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+  table.fields th, table.fields td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.fields th { color: var(--text-faint); font-weight: 500; }
+  table.fields td.raw { color: var(--text-faint); }
+  table.fields td.desc { color: var(--text); }
+
+  .out-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .out-header span { font-size: 11px; color: var(--text-faint); }
+
+  .hint { font-size: 12px; color: var(--text-faint); margin-top: 6px; line-height: 1.6; }
+
+  footer { margin-top: 28px; font-size: 12px; color: var(--text-faint); line-height: 1.7; }
+  footer a { color: var(--text-dim); }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 420px) { .row { gap: 8px 12px; } }
+
+  .prose { line-height: 1.65; font-size: 14px; color: var(--text); }
+  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { margin: 0.9em 0 0.4em; line-height: 1.3; color: var(--text); }
+  .prose h1:first-child, .prose h2:first-child, .prose h3:first-child { margin-top: 0; }
+  .prose h1 { font-size: 1.5em; } .prose h2 { font-size: 1.28em; } .prose h3 { font-size: 1.12em; }
+  .prose h4, .prose h5, .prose h6 { font-size: 1em; color: var(--text-dim); }
+  .prose p { margin: 0.6em 0; }
+  .prose code { background: var(--bg); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  .prose pre { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 10px; overflow-x: auto; margin: 0.7em 0; }
+  .prose pre code { background: none; border: none; padding: 0; }
+  .prose blockquote { border-left: 3px solid var(--accent-dim); margin: 0.6em 0; padding: 2px 12px; color: var(--text-dim); }
+  .prose table { border-collapse: collapse; width: 100%; font-size: 0.92em; margin: 0.7em 0; }
+  .prose th, .prose td { border: 1px solid var(--border); padding: 6px 9px; }
+  .prose th { color: var(--text-dim); }
+  .prose a { color: var(--accent); }
+  .prose img { max-width: 100%; border-radius: 3px; }
+  .prose ul, .prose ol { padding-left: 1.4em; margin: 0.5em 0; }
+  .prose li { margin: 0.2em 0; }
+  .prose hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+  .prose del { color: var(--text-faint); }
+  .prose-frame { background: var(--bg); }
+</style>
+</head>
+<body>
+<nav class="toolset-nav">
+  <a href="./index.html">genid</a>
+  <a href="./devkit.html" class="active">devkit</a>
+</nav>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="name">dev<span class="dot">.</span>kit</div>
+      <div class="tag">cron · base64 · json/xml · markdown — all local</div>
+    </div>
+  </header>
+
+  <nav class="tools" id="tools"></nav>
+
+  <div id="tool-cron"></div>
+  <div id="tool-base64"></div>
+  <div id="tool-formatter"></div>
+  <div id="tool-markdown"></div>
+  <div id="tool-logmasker"></div>
+  <div id="tool-basicauth"></div>
+
+  <footer>
+    Всё выполняется локально в браузере — ничего не отправляется на сервер.<br>
+    Часть той же серии, что и <a href="https://github.com/rjusm/genid" target="_blank" rel="noopener">genid.sh</a>.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- shared: copy with file:// fallback ----------
+
+  function legacyCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function copyText(text, btn) {
+    const label = btn.dataset.label || "copy";
+    const succeed = () => { btn.textContent = "copied"; btn.classList.add("copied"); setTimeout(() => { btn.textContent = label; btn.classList.remove("copied"); }, 1200); };
+    const fail = () => { btn.textContent = "select manually"; setTimeout(() => { btn.textContent = label; }, 1600); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(succeed).catch(() => { if (legacyCopy(text)) succeed(); else fail(); });
+    } else {
+      if (legacyCopy(text)) succeed(); else fail();
+    }
+  }
+
+  function makeCopyBtn(getText) {
+    const btn = document.createElement("button");
+    btn.className = "copy";
+    btn.textContent = "copy";
+    btn.dataset.label = "copy";
+    btn.addEventListener("click", () => copyText(getText(), btn));
+    return btn;
+  }
+
+  // =====================================================================
+  // TOOL: cron humanizer (both directions)
+  // =====================================================================
+
+  const DOW_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const MONTH_NAMES = ["","January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+
+  function describePart(part, unit, names) {
+    const nameOf = v => names ? (names[v] || v) : v;
+    if (part === "*") return `every ${unit}`;
+    let m = part.match(/^(\*|\d+-\d+)\/(\d+)$/);
+    if (m) {
+      if (m[1] === "*") return `every ${m[2]} ${unit}${m[2] === "1" ? "" : "s"}`;
+      const [a, b] = m[1].split("-").map(Number);
+      return `every ${m[2]} ${unit}s from ${nameOf(a)} to ${nameOf(b)}`;
+    }
+    m = part.match(/^(\d+)-(\d+)$/);
+    if (m) return `${unit}s ${nameOf(+m[1])} through ${nameOf(+m[2])}`;
+    if (/^\d+$/.test(part)) return `${unit} ${nameOf(+part)}`;
+    return part;
+  }
+
+  function describeField(field, unit, names) {
+    if (field === "*") return `every ${unit}`;
+    const parts = field.split(",").map(p => describePart(p, unit, names));
+    return parts.join(", and ");
+  }
+
+  const CRON_MACROS = {
+    "@yearly": "0 0 1 1 *", "@annually": "0 0 1 1 *",
+    "@monthly": "0 0 1 * *", "@weekly": "0 0 * * 0",
+    "@daily": "0 0 * * *", "@midnight": "0 0 * * *",
+    "@hourly": "0 * * * *",
+  };
+
+  function humanizeCron(rawInput) {
+    let input = rawInput.trim();
+    if (!input) return { error: "введи cron-выражение" };
+
+    if (input === "@reboot") return { sentence: "Runs once, at system startup.", fields: null };
+    if (CRON_MACROS[input]) input = CRON_MACROS[input];
+
+    const parts = input.split(/\s+/);
+    let min, hour, dom, month, dow;
+    if (parts.length === 5) {
+      [min, hour, dom, month, dow] = parts;
+    } else if (parts.length === 6) {
+      // seconds-first variant (some schedulers) — sec min hour dom month dow
+      [, min, hour, dom, month, dow] = parts;
+    } else {
+      return { error: `ожидается 5 полей (minute hour day-of-month month day-of-week), получено ${parts.length}` };
+    }
+
+    // normalize day-of-week: 7 means Sunday too
+    dow = dow.replace(/\b7\b/g, "0");
+
+    const fieldRanges = { min: [0,59], hour: [0,23], dom: [1,31], month: [1,12], dow: [0,6] };
+    for (const [name, val] of Object.entries({min, hour, dom, month, dow})) {
+      const nums = val.match(/\d+/g) || [];
+      const [lo, hi] = fieldRanges[name];
+      for (const n of nums) {
+        const v = parseInt(n, 10);
+        if (v < lo || v > hi) return { error: `значение ${v} вне диапазона для поля ${name} (${lo}-${hi})` };
+      }
+    }
+
+    let sentence = null;
+    const isNum = s => /^\d+$/.test(s);
+    const N = s => parseInt(s, 10);
+
+    if (min === "*" && hour === "*" && dom === "*" && month === "*" && dow === "*") {
+      sentence = "Runs every minute.";
+    } else {
+      const everyN = min.match(/^\*\/(\d+)$/);
+      if (everyN && hour === "*" && dom === "*" && month === "*" && dow === "*") {
+        sentence = `Runs every ${everyN[1]} minutes.`;
+      } else if (isNum(min) && hour === "*" && dom === "*" && month === "*" && dow === "*") {
+        sentence = `Runs every hour, at minute ${N(min)}.`;
+      } else if (isNum(min) && isNum(hour)) {
+        const time = `${pad2(N(hour))}:${pad2(N(min))}`;
+        if (dom === "*" && month === "*" && dow === "*") {
+          sentence = `Runs every day at ${time}.`;
+        } else if (dom === "*" && month === "*" && isNum(dow)) {
+          sentence = `Runs every week on ${DOW_NAMES[N(dow)]} at ${time}.`;
+        } else if (isNum(dom) && month === "*" && dow === "*") {
+          sentence = `Runs every month on day ${N(dom)} at ${time}.`;
+        } else if (isNum(dom) && isNum(month) && dow === "*") {
+          sentence = `Runs every year on ${MONTH_NAMES[N(month)]} ${N(dom)} at ${time}.`;
+        }
+      }
+    }
+
+    const fields = [
+      { name: "minute", raw: parts.length === 6 ? parts[1] : parts[0], desc: describeField(min, "minute") },
+      { name: "hour", raw: parts.length === 6 ? parts[2] : parts[1], desc: describeField(hour, "hour") },
+      { name: "day-of-month", raw: parts.length === 6 ? parts[3] : parts[2], desc: describeField(dom, "day") },
+      { name: "month", raw: parts.length === 6 ? parts[4] : parts[3], desc: describeField(month, "month", MONTH_NAMES) },
+      { name: "day-of-week", raw: parts.length === 6 ? parts[5] : parts[4], desc: describeField(dow, "day", DOW_NAMES) },
+    ];
+
+    if (!sentence) {
+      sentence = "Runs at " + fields.filter(f => f.desc.indexOf("every") !== 0 || f.name === "minute")
+        .map(f => f.desc).join(", ") + ".";
+    }
+
+    return { sentence, fields };
+  }
+
+  function buildCronFromPreset(preset, v) {
+    switch (preset) {
+      case "every-minute": return "* * * * *";
+      case "every-n-minutes": return `*/${v.n || 5} * * * *`;
+      case "hourly": return `${v.m || 0} * * * *`;
+      case "daily": return `${v.m || 0} ${v.h || 0} * * *`;
+      case "weekly": return `${v.m || 0} ${v.h || 0} * * ${v.dow || 0}`;
+      case "monthly": return `${v.m || 0} ${v.h || 0} ${v.dom || 1} * *`;
+      case "yearly": return `${v.m || 0} ${v.h || 0} ${v.dom || 1} ${v.month || 1} *`;
+      case "custom": return `${v.cmin || "*"} ${v.chour || "*"} ${v.cdom || "*"} ${v.cmonth || "*"} ${v.cdow || "*"}`;
+      default: return "* * * * *";
+    }
+  }
+
+  function initCronTool() {
+    const root = document.getElementById("tool-cron");
+
+    const decodePanel = document.createElement("div");
+    decodePanel.className = "panel";
+    decodePanel.innerHTML = `
+      <h3>cron → human</h3>
+      <div class="row">
+        <input type="text" id="cronInput" placeholder="0 9 * * 1-5" style="flex:1; min-width:180px;">
+        <button class="primary" id="cronDecodeBtn">Decode</button>
+      </div>
+      <div id="cronResult"></div>
+    `;
+    root.appendChild(decodePanel);
+
+    const buildPanel = document.createElement("div");
+    buildPanel.className = "panel";
+    buildPanel.innerHTML = `<h3>human → cron</h3><div id="cronBuilderOpts"></div><div class="actions"><button class="primary" id="cronBuildBtn">Build</button></div><div id="cronBuildResult"></div>`;
+    root.appendChild(buildPanel);
+
+    const PRESETS = {
+      "every-minute": { label: "every minute", fields: [] },
+      "every-n-minutes": { label: "every N minutes", fields: [{ key: "n", label: "N", type: "number", min: 1, max: 59, def: 5 }] },
+      "hourly": { label: "hourly at :M", fields: [{ key: "m", label: "minute", type: "number", min: 0, max: 59, def: 0 }] },
+      "daily": { label: "daily at HH:MM", fields: [{ key: "h", label: "hour", type: "number", min: 0, max: 23, def: 9 }, { key: "m", label: "minute", type: "number", min: 0, max: 59, def: 0 }] },
+      "weekly": { label: "weekly on weekday", fields: [{ key: "dow", label: "weekday", type: "select", options: DOW_NAMES.map((n,i)=>[i,n]), def: 1 }, { key: "h", label: "hour", type: "number", min: 0, max: 23, def: 9 }, { key: "m", label: "minute", type: "number", min: 0, max: 59, def: 0 }] },
+      "monthly": { label: "monthly on day D", fields: [{ key: "dom", label: "day", type: "number", min: 1, max: 31, def: 1 }, { key: "h", label: "hour", type: "number", min: 0, max: 23, def: 9 }, { key: "m", label: "minute", type: "number", min: 0, max: 59, def: 0 }] },
+      "yearly": { label: "yearly on M/D", fields: [{ key: "month", label: "month", type: "select", options: MONTH_NAMES.slice(1).map((n,i)=>[i+1,n]), def: 1 }, { key: "dom", label: "day", type: "number", min: 1, max: 31, def: 1 }, { key: "h", label: "hour", type: "number", min: 0, max: 23, def: 9 }, { key: "m", label: "minute", type: "number", min: 0, max: 59, def: 0 }] },
+      "custom": { label: "custom (raw fields)", fields: [
+        { key: "cmin", label: "minute", type: "text", def: "*" }, { key: "chour", label: "hour", type: "text", def: "*" },
+        { key: "cdom", label: "day-of-month", type: "text", def: "*" }, { key: "cmonth", label: "month", type: "text", def: "*" },
+        { key: "cdow", label: "day-of-week", type: "text", def: "*" },
+      ] },
+    };
+
+    let preset = "daily";
+    const values = {};
+    Object.keys(PRESETS).forEach(p => { values[p] = {}; PRESETS[p].fields.forEach(f => values[p][f.key] = f.def); });
+
+    function renderBuilderOpts() {
+      const el = document.getElementById("cronBuilderOpts");
+      el.innerHTML = "";
+      const presetRow = document.createElement("div");
+      presetRow.className = "row";
+      const label = document.createElement("label"); label.textContent = "pattern";
+      const select = document.createElement("select");
+      Object.entries(PRESETS).forEach(([key, def]) => {
+        const o = document.createElement("option"); o.value = key; o.textContent = def.label;
+        if (key === preset) o.selected = true;
+        select.appendChild(o);
+      });
+      select.addEventListener("change", () => { preset = select.value; renderBuilderOpts(); });
+      presetRow.appendChild(label); presetRow.appendChild(select);
+      el.appendChild(presetRow);
+
+      const fieldsRow = document.createElement("div");
+      fieldsRow.className = "row";
+      PRESETS[preset].fields.forEach(f => {
+        const l = document.createElement("label"); l.textContent = f.label;
+        let input;
+        if (f.type === "select") {
+          input = document.createElement("select");
+          f.options.forEach(([val, text]) => {
+            const o = document.createElement("option"); o.value = val; o.textContent = text;
+            if (String(val) === String(values[preset][f.key])) o.selected = true;
+            input.appendChild(o);
+          });
+          input.addEventListener("change", () => values[preset][f.key] = input.value);
+        } else if (f.type === "number") {
+          input = document.createElement("input"); input.type = "number"; input.min = f.min; input.max = f.max;
+          input.value = values[preset][f.key];
+          input.addEventListener("change", () => values[preset][f.key] = input.value);
+        } else {
+          input = document.createElement("input"); input.type = "text"; input.value = values[preset][f.key];
+          input.style.width = "70px";
+          input.addEventListener("input", () => values[preset][f.key] = input.value);
+        }
+        fieldsRow.appendChild(l); fieldsRow.appendChild(input);
+      });
+      el.appendChild(fieldsRow);
+    }
+
+    function runDecode() {
+      const input = document.getElementById("cronInput").value;
+      const result = document.getElementById("cronResult");
+      const parsed = humanizeCron(input);
+      result.innerHTML = "";
+      if (parsed.error) {
+        const div = document.createElement("div");
+        div.className = "result err";
+        div.textContent = parsed.error;
+        result.appendChild(div);
+        return;
+      }
+      const sentDiv = document.createElement("div");
+      sentDiv.className = "result sentence";
+      sentDiv.textContent = parsed.sentence;
+      result.appendChild(sentDiv);
+
+      if (parsed.fields) {
+        const table = document.createElement("table");
+        table.className = "fields";
+        table.innerHTML = "<tr><th>field</th><th>raw</th><th>meaning</th></tr>" +
+          parsed.fields.map(f => `<tr><td>${f.name}</td><td class="raw">${f.raw}</td><td class="desc">${f.desc}</td></tr>`).join("");
+        result.appendChild(table);
+      }
+    }
+
+    function runBuild() {
+      const cron = buildCronFromPreset(preset, values[preset]);
+      const result = document.getElementById("cronBuildResult");
+      result.innerHTML = "";
+      const line = document.createElement("div");
+      line.className = "row";
+      line.style.marginTop = "6px";
+      const box = document.createElement("div");
+      box.className = "result";
+      box.style.flex = "1";
+      box.textContent = cron;
+      const copyBtn = makeCopyBtn(() => cron);
+      const sendBtn = document.createElement("button");
+      sendBtn.className = "ghost"; sendBtn.textContent = "↑ decode this";
+      sendBtn.addEventListener("click", () => { document.getElementById("cronInput").value = cron; runDecode(); window.scrollTo({top: decodePanel.offsetTop - 12, behavior: "smooth"}); });
+      line.appendChild(box); line.appendChild(copyBtn); line.appendChild(sendBtn);
+      result.appendChild(line);
+    }
+
+    document.getElementById("cronDecodeBtn").addEventListener("click", runDecode);
+    document.getElementById("cronInput").addEventListener("keydown", e => { if (e.key === "Enter") runDecode(); });
+    document.getElementById("cronBuildBtn").addEventListener("click", runBuild);
+
+    renderBuilderOpts();
+    document.getElementById("cronInput").value = "0 9 * * 1-5";
+    runDecode();
+  }
+
+  // =====================================================================
+  // TOOL: base64 encode/decode
+  // =====================================================================
+
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    return bytesToBase64(bytes);
+  }
+  function bytesToBase64(bytes) {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+  function base64ToBytes(b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function toUrlSafe(b64) { return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+  function fromUrlSafe(b64) {
+    let s = b64.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    return s;
+  }
+
+  function initBase64Tool() {
+    const root = document.getElementById("tool-base64");
+
+    const encPanel = document.createElement("div");
+    encPanel.className = "panel";
+    encPanel.innerHTML = `
+      <h3>encode</h3>
+      <textarea class="input-area" id="b64EncIn" placeholder="text to encode..."></textarea>
+      <div class="row checkbox" style="margin-top:8px;">
+        <label><input type="checkbox" id="b64UrlSafeEnc"> URL-safe (- _ , no padding)</label>
+        <label style="margin-left:auto; cursor:pointer;">or from file: <input type="file" id="b64FileInput" style="font-size:12px;"></label>
+      </div>
+      <div class="actions"><button class="primary" id="b64EncBtn">Encode</button></div>
+      <div class="out-header"><span>output</span></div>
+      <div class="row"><textarea class="output-area" id="b64EncOut" readonly style="flex:1;"></textarea></div>
+      <div class="actions"><span></span></div>
+    `;
+    root.appendChild(encPanel);
+
+    const decPanel = document.createElement("div");
+    decPanel.className = "panel";
+    decPanel.innerHTML = `
+      <h3>decode</h3>
+      <textarea class="input-area" id="b64DecIn" placeholder="base64 to decode..."></textarea>
+      <div class="row checkbox" style="margin-top:8px;">
+        <label><input type="checkbox" id="b64UrlSafeDec"> input is URL-safe</label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="b64DecBtn">Decode as text</button>
+        <button class="ghost" id="b64DecFileBtn">Decode &amp; download as file</button>
+      </div>
+      <div id="b64DecResult"></div>
+    `;
+    root.appendChild(decPanel);
+
+    const encOut = document.getElementById("b64EncOut");
+    const encCopyRow = encPanel.querySelectorAll(".actions")[1];
+    encCopyRow.appendChild(makeCopyBtn(() => encOut.value));
+
+    document.getElementById("b64EncBtn").addEventListener("click", () => {
+      const text = document.getElementById("b64EncIn").value;
+      let out = utf8ToBase64(text);
+      if (document.getElementById("b64UrlSafeEnc").checked) out = toUrlSafe(out);
+      encOut.value = out;
+    });
+
+    document.getElementById("b64FileInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const bytes = new Uint8Array(reader.result);
+        let out = bytesToBase64(bytes);
+        if (document.getElementById("b64UrlSafeEnc").checked) out = toUrlSafe(out);
+        encOut.value = out;
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function decodeCurrent() {
+      let input = document.getElementById("b64DecIn").value.trim();
+      if (document.getElementById("b64UrlSafeDec").checked) input = fromUrlSafe(input);
+      return base64ToBytes(input);
+    }
+
+    document.getElementById("b64DecBtn").addEventListener("click", () => {
+      const result = document.getElementById("b64DecResult");
+      result.innerHTML = "";
+      try {
+        const bytes = decodeCurrent();
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        const row = document.createElement("div");
+        row.className = "row";
+        const box = document.createElement("textarea");
+        box.className = "output-area"; box.readOnly = true; box.style.flex = "1"; box.value = text;
+        row.appendChild(box);
+        row.appendChild(makeCopyBtn(() => text));
+        result.appendChild(row);
+      } catch (e) {
+        const div = document.createElement("div");
+        div.className = "result err";
+        div.textContent = "не удалось декодировать: невалидный base64 или не UTF-8 текст (" + e.message + ")";
+        result.appendChild(div);
+      }
+    });
+
+    document.getElementById("b64DecFileBtn").addEventListener("click", () => {
+      const result = document.getElementById("b64DecResult");
+      result.innerHTML = "";
+      try {
+        const bytes = decodeCurrent();
+        const blob = new Blob([bytes]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "decoded.bin";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        const div = document.createElement("div");
+        div.className = "hint";
+        div.textContent = "скачивание начато (decoded.bin)";
+        result.appendChild(div);
+      } catch (e) {
+        const div = document.createElement("div");
+        div.className = "result err";
+        div.textContent = "не удалось декодировать: невалидный base64 (" + e.message + ")";
+        result.appendChild(div);
+      }
+    });
+  }
+
+  // =====================================================================
+  // TOOL: JSON / XML formatter
+  // =====================================================================
+
+  function jsonErrorLoc(input, message) {
+    const m = message.match(/position (\d+)/);
+    if (!m) return "";
+    const pos = parseInt(m[1], 10);
+    const before = input.slice(0, pos);
+    const line = (before.match(/\n/g) || []).length + 1;
+    const col = pos - before.lastIndexOf("\n");
+    return ` (line ${line}, col ${col})`;
+  }
+
+  function serializeXmlNode(node, depth, indent) {
+    const pad = indent.repeat(depth);
+    if (node.nodeType === 3) return node.textContent.trim();
+    const attrs = Array.from(node.attributes || []).map(a => ` ${a.name}="${a.value}"`).join("");
+    const children = Array.from(node.childNodes).filter(n => n.nodeType !== 3 || n.textContent.trim() !== "");
+    if (children.length === 0) return `${pad}<${node.nodeName}${attrs}/>`;
+    if (children.length === 1 && children[0].nodeType === 3) {
+      return `${pad}<${node.nodeName}${attrs}>${children[0].textContent.trim()}</${node.nodeName}>`;
+    }
+    const inner = children.map(c => serializeXmlNode(c, depth + 1, indent)).join("\n");
+    return `${pad}<${node.nodeName}${attrs}>\n${inner}\n${pad}</${node.nodeName}>`;
+  }
+
+  function formatXml(input, indent) {
+    const doc = new DOMParser().parseFromString(input, "application/xml");
+    const errNode = doc.querySelector("parsererror");
+    if (errNode) throw new Error(errNode.textContent.split("\n").filter(Boolean)[0] || "invalid XML");
+    let out = serializeXmlNode(doc.documentElement, 0, indent);
+    if (/^\s*<\?xml/.test(input)) {
+      const decl = input.match(/^\s*<\?xml[^?]*\?>/);
+      if (decl) out = decl[0] + "\n" + out;
+    }
+    return out;
+  }
+
+  function minifyXml(input) {
+    const doc = new DOMParser().parseFromString(input, "application/xml");
+    const errNode = doc.querySelector("parsererror");
+    if (errNode) throw new Error(errNode.textContent.split("\n").filter(Boolean)[0] || "invalid XML");
+    return new XMLSerializer().serializeToString(doc).replace(/>\s+</g, "><").trim();
+  }
+
+  function initFormatterTool() {
+    const root = document.getElementById("tool-formatter");
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.innerHTML = `
+      <h3>json / xml formatter</h3>
+      <textarea class="input-area" id="fmtIn" placeholder='{"hello":"world"} or <root><a>1</a></root>'></textarea>
+      <div class="row" style="margin-top:8px;">
+        <label>format</label>
+        <select id="fmtType"><option value="auto">auto-detect</option><option value="json">JSON</option><option value="xml">XML</option></select>
+        <label>indent</label>
+        <select id="fmtIndent"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="tab">tab</option></select>
+      </div>
+      <div class="actions">
+        <button class="primary" id="fmtFormatBtn">Format</button>
+        <button class="ghost" id="fmtMinifyBtn">Minify</button>
+        <button class="ghost" id="fmtValidateBtn">Validate</button>
+      </div>
+      <div id="fmtResult"></div>
+    `;
+    root.appendChild(panel);
+
+    function detectType(input) {
+      const t = input.trim();
+      if (t.startsWith("<")) return "xml";
+      return "json";
+    }
+
+    function getIndent() {
+      const v = document.getElementById("fmtIndent").value;
+      return v === "tab" ? "\t" : " ".repeat(parseInt(v, 10));
+    }
+
+    function showOutput(text) {
+      const result = document.getElementById("fmtResult");
+      result.innerHTML = "";
+      const row = document.createElement("div");
+      row.className = "row";
+      const box = document.createElement("textarea");
+      box.className = "output-area"; box.readOnly = true; box.style.flex = "1"; box.style.minHeight = "180px";
+      box.value = text;
+      row.appendChild(box);
+      row.appendChild(makeCopyBtn(() => text));
+      result.appendChild(row);
+    }
+
+    function showError(msg) {
+      const result = document.getElementById("fmtResult");
+      result.innerHTML = "";
+      const div = document.createElement("div");
+      div.className = "result err";
+      div.textContent = msg;
+      result.appendChild(div);
+    }
+
+    document.getElementById("fmtFormatBtn").addEventListener("click", () => {
+      const input = document.getElementById("fmtIn").value;
+      if (!input.trim()) return showError("нечего форматировать — вставь JSON или XML выше");
+      let type = document.getElementById("fmtType").value;
+      if (type === "auto") type = detectType(input);
+      try {
+        if (type === "json") {
+          showOutput(JSON.stringify(JSON.parse(input), null, getIndent()));
+        } else {
+          showOutput(formatXml(input, getIndent()));
+        }
+      } catch (e) {
+        const loc = type === "json" ? jsonErrorLoc(input, e.message) : "";
+        showError(`${type.toUpperCase()} parse error: ${e.message}${loc}`);
+      }
+    });
+
+    document.getElementById("fmtMinifyBtn").addEventListener("click", () => {
+      const input = document.getElementById("fmtIn").value;
+      if (!input.trim()) return showError("нечего минифицировать — вставь JSON или XML выше");
+      let type = document.getElementById("fmtType").value;
+      if (type === "auto") type = detectType(input);
+      try {
+        if (type === "json") {
+          showOutput(JSON.stringify(JSON.parse(input)));
+        } else {
+          showOutput(minifyXml(input));
+        }
+      } catch (e) {
+        const loc = type === "json" ? jsonErrorLoc(input, e.message) : "";
+        showError(`${type.toUpperCase()} parse error: ${e.message}${loc}`);
+      }
+    });
+
+    document.getElementById("fmtValidateBtn").addEventListener("click", () => {
+      const input = document.getElementById("fmtIn").value;
+      const result = document.getElementById("fmtResult");
+      result.innerHTML = "";
+      if (!input.trim()) return showError("нечего валидировать — вставь JSON или XML выше");
+      let type = document.getElementById("fmtType").value;
+      if (type === "auto") type = detectType(input);
+      try {
+        if (type === "json") { JSON.parse(input); } else { formatXml(input, "  "); }
+        const div = document.createElement("div");
+        div.className = "result sentence";
+        div.textContent = `✓ valid ${type.toUpperCase()}`;
+        result.appendChild(div);
+      } catch (e) {
+        const loc = type === "json" ? jsonErrorLoc(input, e.message) : "";
+        showError(`✗ invalid ${type.toUpperCase()}: ${e.message}${loc}`);
+      }
+    });
+  }
+
+  // =====================================================================
+  // TOOL: markdown viewer
+  // =====================================================================
+  //
+  // A deliberately small, dependency-free Markdown -> HTML renderer (no
+  // CDN library — keeps the whole page offline-capable). Covers headers,
+  // emphasis/bold/strikethrough, inline code, fenced code blocks, links,
+  // images, autolinks, blockquotes (recursive), flat unordered/ordered
+  // lists with wrapped continuation lines, horizontal rules, and GFM-style
+  // tables. It is NOT a full CommonMark implementation — nested lists,
+  // reference-style links, and a few edge cases are out of scope.
+  //
+  // Safety: the source is HTML-escaped before any markdown syntax is
+  // applied, so raw HTML typed/pasted into the input is shown as literal
+  // text rather than executed — this is a personal viewer, not a
+  // sanitizer for untrusted third-party content.
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function mdInline(text) {
+    let s = escapeHtml(text);
+    const tokens = [];
+    const protect = html => { tokens.push(html); return `\u0000T${tokens.length - 1}\u0000`; };
+
+    // code spans first, so their contents are immune to every rule below
+    s = s.replace(/`([^`]+)`/g, (m, code) => protect(`<code>${code}</code>`));
+    // images before links (images use the same bracket syntax with a leading !)
+    s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
+      (m, alt, url, title) => protect(`<img alt="${alt}" src="${url}"${title ? ` title="${title}"` : ""}>`));
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
+      (m, txt, url, title) => protect(`<a href="${url}"${title ? ` title="${title}"` : ""} target="_blank" rel="noopener">${txt}</a>`));
+    s = s.replace(/&lt;((?:https?|mailto):[^&\s]+)&gt;/g, (m, url) => protect(`<a href="${url}" target="_blank" rel="noopener">${url}</a>`));
+
+    s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    s = s.replace(/(^|[^\w\u0000])_([^_]+)_(?!\w)/g, "$1<em>$2</em>");
+    s = s.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    s = s.replace(/ {2}\n/g, "<br>\n");
+
+    s = s.replace(/\u0000T(\d+)\u0000/g, (m, idx) => tokens[idx]);
+    return s;
+  }
+
+  function mdSplitTableRow(line) {
+    let l = line.trim();
+    if (l.startsWith("|")) l = l.slice(1);
+    if (l.endsWith("|")) l = l.slice(0, -1);
+    return l.split("|");
+  }
+
+  function mdListItemMatch(line) {
+    const ul = line.match(/^(\s*)([-*+]) +(.*)$/);
+    if (ul) return { indent: ul[1].length, ordered: false, content: ul[3] };
+    const ol = line.match(/^(\s*)(\d+)\. +(.*)$/);
+    if (ol) return { indent: ol[1].length, ordered: true, content: ol[3] };
+    return null;
+  }
+
+  // Recursively parses a (possibly nested) list starting at lines[i], where
+  // every item is expected at exactly `baseIndent`. A following line indented
+  // deeper than baseIndent and itself a list item starts a nested <ul>/<ol>
+  // inside the current <li>; a deeper but non-list line is a wrapped
+  // continuation of the current item's text.
+  function parseMdList(lines, i, n, baseIndent) {
+    const first = mdListItemMatch(lines[i]);
+    const ordered = first.ordered;
+    const tag = ordered ? "ol" : "ul";
+    const itemsHtml = [];
+    while (i < n) {
+      const m = mdListItemMatch(lines[i]);
+      if (!m || m.ordered !== ordered || m.indent !== baseIndent) break;
+      let content = m.content;
+      i++;
+      let nested = "";
+      while (i < n) {
+        const next = mdListItemMatch(lines[i]);
+        if (next && next.indent > baseIndent) {
+          const res = parseMdList(lines, i, n, next.indent);
+          nested += res.html;
+          i = res.next;
+        } else if (/^\s+\S/.test(lines[i]) && !mdListItemMatch(lines[i])) {
+          content += " " + lines[i].trim();
+          i++;
+        } else {
+          break;
+        }
+      }
+      itemsHtml.push(`<li>${mdInline(content)}${nested}</li>`);
+    }
+    return { html: `<${tag}>${itemsHtml.join("")}</${tag}>`, next: i };
+  }
+
+  function renderMarkdown(src) {
+    const lines = src.replace(/\r\n?/g, "\n").split("\n");
+    const out = [];
+    let i = 0;
+    const n = lines.length;
+    let para = [];
+
+    const flushParagraph = () => {
+      if (para.length) { out.push("<p>" + mdInline(para.join(" ")) + "</p>"); para = []; }
+    };
+
+    while (i < n) {
+      const line = lines[i];
+
+      const fence = line.match(/^(```|~~~)(.*)$/);
+      if (fence) {
+        flushParagraph();
+        const marker = fence[1], lang = fence[2].trim();
+        const codeLines = [];
+        i++;
+        while (i < n && !lines[i].startsWith(marker)) { codeLines.push(lines[i]); i++; }
+        i++;
+        out.push(`<pre><code${lang ? ` class="language-${escapeHtml(lang)}"` : ""}>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        continue;
+      }
+
+      if (/^\s*$/.test(line)) { flushParagraph(); i++; continue; }
+
+      if (/^ {0,3}([-*_])( *\1){2,} *$/.test(line)) { flushParagraph(); out.push("<hr>"); i++; continue; }
+
+      const h = line.match(/^ {0,3}(#{1,6}) +(.*?) *#*$/);
+      if (h) { flushParagraph(); const level = h[1].length; out.push(`<h${level}>${mdInline(h[2])}</h${level}>`); i++; continue; }
+
+      if (/^ {0,3}>/.test(line)) {
+        flushParagraph();
+        const qLines = [];
+        while (i < n && /^ {0,3}>/.test(lines[i])) { qLines.push(lines[i].replace(/^ {0,3}> ?/, "")); i++; }
+        out.push("<blockquote>" + renderMarkdown(qLines.join("\n")) + "</blockquote>");
+        continue;
+      }
+
+      if (/\|/.test(line) && i + 1 < n && /^ {0,3}\|?[\s:-]+\|[\s:|-]*$/.test(lines[i + 1])) {
+        flushParagraph();
+        const headerCells = mdSplitTableRow(line);
+        const aligns = mdSplitTableRow(lines[i + 1]).map(c => {
+          const t = c.trim();
+          if (/^:-+:$/.test(t)) return "center";
+          if (/^-+:$/.test(t)) return "right";
+          if (/^:-+$/.test(t)) return "left";
+          return "";
+        });
+        i += 2;
+        const bodyRows = [];
+        while (i < n && /\|/.test(lines[i]) && lines[i].trim() !== "") { bodyRows.push(mdSplitTableRow(lines[i])); i++; }
+        let t = "<table><thead><tr>" + headerCells.map((c, idx) =>
+          `<th${aligns[idx] ? ` style="text-align:${aligns[idx]}"` : ""}>${mdInline(c.trim())}</th>`).join("") + "</tr></thead>";
+        if (bodyRows.length) {
+          t += "<tbody>" + bodyRows.map(r => "<tr>" + r.map((c, idx) =>
+            `<td${aligns[idx] ? ` style="text-align:${aligns[idx]}"` : ""}>${mdInline(c.trim())}</td>`).join("") + "</tr>").join("") + "</tbody>";
+        }
+        out.push(t + "</table>");
+        continue;
+      }
+
+      const listMatch = mdListItemMatch(line);
+      if (listMatch) {
+        flushParagraph();
+        const res = parseMdList(lines, i, n, listMatch.indent);
+        out.push(res.html);
+        i = res.next;
+        continue;
+      }
+
+      para.push(line.trim());
+      i++;
+    }
+    flushParagraph();
+    return out.join("\n");
+  }
+
+  function initMarkdownTool() {
+    const root = document.getElementById("tool-markdown");
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.innerHTML = `
+      <h3>markdown viewer</h3>
+      <textarea class="input-area" id="mdIn" placeholder="# Hello&#10;&#10;Some **markdown** here..."></textarea>
+      <div class="row" style="margin-top:8px;">
+        <label style="cursor:pointer;">load file: <input type="file" id="mdFileInput" accept=".md,.markdown,text/markdown,text/plain" style="font-size:12px;"></label>
+        <label class="checkbox" style="margin-left:auto; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="mdAutoRender" checked> auto-render</label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="mdRenderBtn">Render</button>
+        <button class="ghost" id="mdCopyHtmlBtn">Copy HTML</button>
+      </div>
+      <div class="out-header"><span>preview</span></div>
+      <div class="panel prose-frame"><div class="prose" id="mdPreview"></div></div>
+    `;
+    root.appendChild(panel);
+
+    const input = document.getElementById("mdIn");
+    const preview = document.getElementById("mdPreview");
+
+    function render() { preview.innerHTML = renderMarkdown(input.value); }
+
+    document.getElementById("mdRenderBtn").addEventListener("click", render);
+
+    let debounceTimer;
+    input.addEventListener("input", () => {
+      if (!document.getElementById("mdAutoRender").checked) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(render, 150);
+    });
+
+    document.getElementById("mdFileInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { input.value = reader.result; render(); };
+      reader.readAsText(file);
+    });
+
+    const copyHtmlBtn = document.getElementById("mdCopyHtmlBtn");
+    copyHtmlBtn.dataset.label = "Copy HTML";
+    copyHtmlBtn.addEventListener("click", () => copyText(renderMarkdown(input.value), copyHtmlBtn));
+
+    input.value = "# Hello\n\nThis is **bold**, *italic*, and `inline code`.\n\n- item one\n- item two\n\n> a quote\n\n```js\nconst x = 1;\n```\n\n[a link](https://example.com)";
+    render();
+  }
+
+  // =====================================================================
+  // TOOL: log masker
+  // =====================================================================
+  //
+  // Finds common sensitive patterns in pasted log/text and replaces them
+  // with either a type tag ([EMAIL], [IP], ...) or a partial mask that
+  // keeps the last 4 characters visible. Card-number matches are only
+  // masked if they pass a Luhn check, to cut down on false positives from
+  // random long digit runs (order IDs, timestamps, etc).
+  //
+  // This is pattern-matching, not a guarantee: always skim the output
+  // before pasting it somewhere, especially for phone numbers, which are
+  // the noisiest category to detect reliably.
+
+  function luhnValid(digits) {
+    let sum = 0, alt = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let n = parseInt(digits[i], 10);
+      if (alt) { n *= 2; if (n > 9) n -= 9; }
+      sum += n;
+      alt = !alt;
+    }
+    return digits.length > 0 && sum % 10 === 0;
+  }
+
+  const LOG_MASK_PATTERNS = [
+    { key: "jwt", label: "JWT", re: /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/g },
+    { key: "email", label: "EMAIL", re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
+    { key: "ip", label: "IP", re: /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g },
+    { key: "mac", label: "MAC", re: /\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b/g },
+    { key: "card", label: "CARD", re: /\b(?:\d[ -]?){13,19}\b/g },
+    { key: "phone", label: "PHONE", re: /(?<![\w])(?:\+\d{1,3}[\s-]?)?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{2,4}(?:[\s-]?\d{2,4})?(?![\w])/g },
+    { key: "token", label: "TOKEN", re: /\b[A-Za-z0-9_-]{24,}\b/g },
+  ];
+
+  function maskLog(text, opts) {
+    let result = text;
+    const counts = {};
+    for (const p of LOG_MASK_PATTERNS) {
+      if (!opts[p.key]) continue;
+      result = result.replace(p.re, (m) => {
+        if (p.key === "card") {
+          const digits = m.replace(/[^\d]/g, "");
+          if (digits.length < 13 || digits.length > 19 || !luhnValid(digits)) return m;
+        }
+        if (p.key === "phone") {
+          const digits = m.replace(/[^\d]/g, "");
+          if (digits.length < 9 || digits.length > 15) return m;
+        }
+        counts[p.label] = (counts[p.label] || 0) + 1;
+        if (opts.mode === "partial") {
+          const visible = m.slice(-4);
+          return "•".repeat(Math.max(0, m.length - 4)) + visible;
+        }
+        return `[${p.label}]`;
+      });
+    }
+    return { result, counts };
+  }
+
+  function initLogMaskerTool() {
+    const root = document.getElementById("tool-logmasker");
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.innerHTML = `
+      <h3>log masker</h3>
+      <textarea class="input-area" id="lmIn" placeholder="paste a log line or block of text..."></textarea>
+      <div class="row" style="margin-top:8px;">
+        <label class="opt"><input type="checkbox" id="lmJwt" checked> JWT</label>
+        <label class="opt"><input type="checkbox" id="lmEmail" checked> email</label>
+        <label class="opt"><input type="checkbox" id="lmIp" checked> IP</label>
+        <label class="opt"><input type="checkbox" id="lmMac"> MAC</label>
+        <label class="opt"><input type="checkbox" id="lmCard" checked> card (Luhn-checked)</label>
+        <label class="opt"><input type="checkbox" id="lmPhone" checked> phone (heuristic)</label>
+        <label class="opt"><input type="checkbox" id="lmToken"> long tokens (24+ chars, noisy)</label>
+      </div>
+      <div class="row" style="margin-top:4px;">
+        <label>mode</label>
+        <select id="lmMode"><option value="tag">tag — [EMAIL], [IP]...</option><option value="partial">partial — keep last 4 chars</option></select>
+      </div>
+      <div class="actions"><button class="primary" id="lmRunBtn">Mask</button></div>
+      <div id="lmResult"></div>
+      <div class="hint">Эвристика по регуляркам — всегда бегло проверяй результат перед тем как куда-то вставлять, особенно телефоны (самая шумная категория).</div>
+    `;
+    root.appendChild(panel);
+
+    function run() {
+      const text = document.getElementById("lmIn").value;
+      const result = document.getElementById("lmResult");
+      result.innerHTML = "";
+      if (!text.trim()) return;
+      const opts = {
+        jwt: document.getElementById("lmJwt").checked,
+        email: document.getElementById("lmEmail").checked,
+        ip: document.getElementById("lmIp").checked,
+        mac: document.getElementById("lmMac").checked,
+        card: document.getElementById("lmCard").checked,
+        phone: document.getElementById("lmPhone").checked,
+        token: document.getElementById("lmToken").checked,
+        mode: document.getElementById("lmMode").value,
+      };
+      const { result: masked, counts } = maskLog(text, opts);
+
+      const row = document.createElement("div");
+      row.className = "row";
+      const box = document.createElement("textarea");
+      box.className = "output-area"; box.readOnly = true; box.style.flex = "1"; box.style.minHeight = "140px";
+      box.value = masked;
+      row.appendChild(box);
+      row.appendChild(makeCopyBtn(() => masked));
+      result.appendChild(row);
+
+      const summary = Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join(", ");
+      const meta = document.createElement("div");
+      meta.className = "hint";
+      meta.textContent = summary ? `masked — ${summary}` : "ничего не найдено по выбранным категориям";
+      result.appendChild(meta);
+    }
+
+    document.getElementById("lmRunBtn").addEventListener("click", run);
+  }
+
+  // =====================================================================
+  // TOOL: HTTP Basic Auth encode/decode
+  // =====================================================================
+
+  function initBasicAuthTool() {
+    const root = document.getElementById("tool-basicauth");
+
+    const encPanel = document.createElement("div");
+    encPanel.className = "panel";
+    encPanel.innerHTML = `
+      <h3>encode</h3>
+      <div class="row">
+        <label>username</label>
+        <input type="text" id="baUser" style="flex:1; min-width:120px;">
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <label>password</label>
+        <input type="text" id="baPass" style="flex:1; min-width:120px;">
+      </div>
+      <div class="actions"><button class="primary" id="baEncBtn">Encode</button></div>
+      <div id="baEncResult"></div>
+    `;
+    root.appendChild(encPanel);
+
+    const decPanel = document.createElement("div");
+    decPanel.className = "panel";
+    decPanel.innerHTML = `
+      <h3>decode</h3>
+      <textarea class="input-area" id="baDecIn" placeholder="Basic dXNlcjpwYXNz  (or just the base64 part)" style="min-height:70px;"></textarea>
+      <div class="actions"><button class="primary" id="baDecBtn">Decode</button></div>
+      <div id="baDecResult"></div>
+    `;
+    root.appendChild(decPanel);
+
+    document.getElementById("baEncBtn").addEventListener("click", () => {
+      const user = document.getElementById("baUser").value;
+      const pass = document.getElementById("baPass").value;
+      const header = "Basic " + utf8ToBase64(`${user}:${pass}`);
+      const result = document.getElementById("baEncResult");
+      result.innerHTML = "";
+      const row = document.createElement("div");
+      row.className = "row";
+      const box = document.createElement("div");
+      box.className = "result"; box.style.flex = "1"; box.style.wordBreak = "break-all";
+      box.textContent = header;
+      row.appendChild(box);
+      row.appendChild(makeCopyBtn(() => header));
+      result.appendChild(row);
+    });
+
+    document.getElementById("baDecBtn").addEventListener("click", () => {
+      const result = document.getElementById("baDecResult");
+      result.innerHTML = "";
+      let raw = document.getElementById("baDecIn").value.trim();
+      raw = raw.replace(/^Basic\s+/i, "");
+      try {
+        const bytes = base64ToBytes(raw);
+        const text = new TextDecoder("utf-8").decode(bytes);
+        const idx = text.indexOf(":");
+        if (idx === -1) throw new Error("нет разделителя ':' — это не user:pass payload");
+        const user = text.slice(0, idx);
+        const pass = text.slice(idx + 1);
+        const line1 = document.createElement("div");
+        line1.className = "line";
+        line1.innerHTML = `<span class="prompt">&gt;</span><span class="value">user: ${user}</span>`;
+        const line2 = document.createElement("div");
+        line2.className = "line";
+        line2.innerHTML = `<span class="prompt">&gt;</span><span class="value">pass: ${pass}</span>`;
+        result.appendChild(line1);
+        result.appendChild(line2);
+      } catch (e) {
+        const div = document.createElement("div");
+        div.className = "result err";
+        div.textContent = "не удалось декодировать: " + e.message;
+        result.appendChild(div);
+      }
+    });
+  }
+
+  // =====================================================================
+  // tab switching
+  // =====================================================================
+
+  const TOOLS = [
+    { key: "cron", label: "cron", panelId: "tool-cron" },
+    { key: "base64", label: "base64", panelId: "tool-base64" },
+    { key: "formatter", label: "json / xml", panelId: "tool-formatter" },
+    { key: "markdown", label: "markdown", panelId: "tool-markdown" },
+    { key: "logmasker", label: "log masker", panelId: "tool-logmasker" },
+    { key: "basicauth", label: "basic auth", panelId: "tool-basicauth" },
+  ];
+  let currentTool = "cron";
+
+  function renderTabs() {
+    const nav = document.getElementById("tools");
+    nav.innerHTML = "";
+    TOOLS.forEach(t => {
+      const btn = document.createElement("button");
+      btn.textContent = t.label;
+      btn.className = t.key === currentTool ? "active" : "";
+      btn.addEventListener("click", () => { currentTool = t.key; renderTabs(); showPanel(); });
+      nav.appendChild(btn);
+    });
+  }
+
+  function showPanel() {
+    TOOLS.forEach(t => document.getElementById(t.panelId).classList.toggle("hidden", t.key !== currentTool));
+  }
+
+  initCronTool();
+  initBase64Tool();
+  initFormatterTool();
+  initMarkdownTool();
+  initLogMaskerTool();
+  initBasicAuthTool();
+  renderTabs();
+  showPanel();
+})();
+</script>
+</body>
+</html>
