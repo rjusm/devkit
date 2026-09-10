@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>devkit — cron / base64 / json·xml / markdown</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <meta name="description" content="Cron expression humanizer (both directions), Base64 encode/decode, JSON/XML formatter, Markdown viewer. Runs entirely in your browser.">
 <style>
   :root {
@@ -173,6 +174,12 @@
 <script>
 (function () {
   "use strict";
+
+  // No-op outside Telegram — only activates when opened as a Telegram Mini App.
+  if (window.Telegram && window.Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+  }
 
   // ---------- shared: copy with file:// fallback ----------
 
