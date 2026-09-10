@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>genid — random data generator</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <meta name="description" content="Portable random data generator: passwords, passphrases, usernames, UUIDs, ULIDs, hex, base64, tokens. Runs entirely in your browser.">
 <style>
   :root {
@@ -256,6 +257,12 @@
 <script>
 (function () {
   "use strict";
+
+  // No-op outside Telegram — only activates when opened as a Telegram Mini App.
+  if (window.Telegram && window.Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+  }
 
   // ---------- RNG primitives ----------
 
