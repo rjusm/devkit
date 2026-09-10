@@ -5,49 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>genid — random data generator</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<meta name="description" content="Portable random data generator: passwords, passphrases, usernames, UUIDs, ULIDs, hex, base64, tokens. Runs entirely in your browser.">
+<meta name="description" content="Portable random data generator: passwords, passphrases, usernames, UUIDs, ULIDs, hex, base64, tokens, and a string inspector. Runs entirely in your browser.">
 <style>
   :root {
-    --bg: #12151a;
-    --panel: #191d24;
-    --border: #262b34;
-    --border-active: #3a4250;
-    --text: #dde2e8;
-    --text-dim: #6f7787;
-    --text-faint: #4b5262;
-    --accent: #62b891;
-    --accent-dim: #3c6e57;
-    --warn: #d99a5b;
-    --danger: #d97070;
+    --bg: #0D1013;
+    --panel: oklch(0.18 0.012 260);
+    --panel-nested: oklch(0.14 0.01 260);
+    --border: oklch(0.28 0.012 260);
+    --border-active: oklch(0.4 0.02 260);
+    --text: oklch(0.93 0.008 260);
+    --text-dim: oklch(0.7 0.015 260);
+    --text-faint: oklch(0.58 0.02 260);
+    --accent: oklch(0.78 0.13 168);
+    --accent-hover: oklch(0.87 0.13 168);
+    --accent-dim: oklch(0.5 0.08 168);
+    --accent-tint: oklch(0.3 0.05 168);
+    --accent-ink: #06140F;
+    --warn: oklch(0.72 0.13 80);
+    --danger: oklch(0.78 0.14 25);
+    --danger-border: oklch(0.45 0.12 25);
+    --radius-card: 18px;
+    --radius-control: 10px;
+    --radius-pill: 999px;
     --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
 
   * { box-sizing: border-box; }
 
-  .toolset-nav {
-    display: flex;
-    gap: 6px;
-    padding: 10px 16px;
-    max-width: min(92vw, 1000px);
-    margin: 0 auto;
-    width: 100%;
-  }
-  .toolset-nav a {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-faint);
-    text-decoration: none;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 5px 10px;
-  }
-  .toolset-nav a:hover { color: var(--text); border-color: var(--border-active); }
-  .toolset-nav a.active { color: var(--accent); border-color: var(--accent-dim); background: rgba(98, 184, 145, 0.07); }
-
   html, body {
     margin: 0;
     padding: 0;
-    background: var(--bg);
     color: var(--text);
     font-family: var(--mono);
     -webkit-font-smoothing: antialiased;
@@ -59,196 +46,185 @@
     flex-direction: column;
     align-items: center;
     padding: 28px 16px 60px;
+    background: radial-gradient(1200px 500px at 50% -10%, oklch(0.24 0.03 190), var(--bg) 60%);
   }
 
   .wrap { width: 100%; max-width: min(92vw, 1000px); }
 
   header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 22px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  header .name { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
-  header .name .dot { color: var(--accent); }
-  header .tag { font-size: 12px; color: var(--text-faint); }
-
-  nav.cmds {
-    display: flex;
+    gap: 16px;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 22px;
   }
+  header .brand { display: flex; align-items: center; gap: 10px; }
+  header .brand-dot { width: 9px; height: 9px; border-radius: var(--radius-pill); background: var(--accent); box-shadow: 0 0 12px var(--accent); flex-shrink: 0; }
+  header .name { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+  header .name .dot { color: var(--text-faint); }
+  header .badge { font-size: 11px; color: var(--text-faint); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 3px 10px; }
+  header nav.pages { display: flex; gap: 18px; font-family: var(--mono); font-size: 13px; }
+  header nav.pages span.current { color: var(--text); }
+  header nav.pages a { color: var(--text-faint); text-decoration: none; }
+  header nav.pages a:hover { color: var(--text); }
 
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 16px; }
+  .panel.builder { background: oklch(0.16 0.012 260); }
+
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .panel-head .eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); }
+  .panel-head .status { font-size: 11.5px; color: var(--text-faint); }
+
+  .empty-box { border: 1px dashed var(--border-active); border-radius: 12px; padding: 38px 20px; text-align: center; font-family: var(--mono); font-size: 13px; color: var(--text-faint); }
+
+  .hidden { display: none !important; }
+
+  #results { display: flex; flex-direction: column; gap: 8px; }
+
+  .result-row {
+    display: flex; align-items: center; gap: 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 14px 14px 16px;
+  }
+  .result-row .prompt { color: var(--accent); flex-shrink: 0; }
+  .result-row code { font-size: 15px; line-height: 1.5; color: var(--text); word-break: break-all; flex: 1 1 auto; min-width: 0; font-family: var(--mono); }
+  .result-row button.copy { flex-shrink: 0; }
+
+  .entropy-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 14px; }
+  .entropy-row .bits { font-size: 22px; font-weight: 500; }
+  .entropy-row .bits .unit { font-size: 12px; color: var(--text-faint); margin-left: 6px; font-weight: 400; }
+  .entropy-bar { flex: 1 1 160px; min-width: 100px; height: 6px; border-radius: var(--radius-pill); background: var(--border); overflow: hidden; }
+  .entropy-bar .fill { height: 100%; border-radius: var(--radius-pill); transition: width 200ms ease; }
+  .entropy-row .verdict { font-size: 12px; color: var(--text-faint); }
+
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  button.primary .kbd { opacity: 0.6; font-size: 12px; margin-left: 8px; }
+
+  nav.cmds { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   nav.cmds button {
-    font-family: var(--mono);
-    font-size: 13px;
-    background: transparent;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 7px 12px;
-    cursor: pointer;
-    transition: border-color 0.12s, color 0.12s;
+    font-family: var(--mono); font-size: 13px; background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 7px 15px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px; line-height: 1.3;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
   }
-
+  nav.cmds button .hint { font-size: 10px; color: var(--text-faint); opacity: 0.8; }
   nav.cmds button:hover { border-color: var(--border-active); color: var(--text); }
-  nav.cmds button.active {
-    color: var(--accent);
-    border-color: var(--accent-dim);
-    background: rgba(98, 184, 145, 0.07);
-  }
+  nav.cmds button.active { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-tint); font-weight: 600; }
+  nav.cmds button.active .hint { color: var(--accent); opacity: 0.75; }
 
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 14px;
-  }
-
-  .panel-title {
-    font-size: 11px;
-    color: var(--text-faint);
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .opts { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; }
-  .opt { display: flex; align-items: center; gap: 7px; color: var(--text-dim); }
+  .opts { display: flex; flex-wrap: wrap; gap: 16px 24px; }
+  .opt { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
   .opt.wide { flex-basis: 100%; }
-  .opt label { white-space: nowrap; }
+  .opt > span.lbl { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
 
-  .opt select, .opt input[type="number"], .opt input[type="text"] {
+  .opt select, .opt input[type="number"], .opt input[type="text"], .opt textarea {
     font-family: var(--mono);
     font-size: 13px;
     background: var(--bg);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 5px 7px;
+    border-radius: 9px;
+    padding: 9px 12px;
   }
+  .opt select { min-width: 170px; }
+  .opt input[type="number"] { width: 96px; }
+  .opt input[type="text"] { width: 100%; }
+  .opt textarea { width: 100%; resize: vertical; line-height: 1.6; }
+  .opt.wide input[type="text"], .opt.wide textarea { flex: 1; }
 
-  .opt input[type="number"] { width: 60px; }
-  .opt input[type="text"] { width: 100%; min-width: 140px; }
-  .opt.wide input[type="text"] { flex: 1; }
-  .opt.checkbox { cursor: pointer; user-select: none; }
-  .opt.checkbox input { accent-color: var(--accent); }
-
-  .actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toggle-pill {
+    display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none;
+    padding: 8px 14px 8px 11px; border-radius: var(--radius-pill); border: 1px solid var(--border);
+    color: var(--text-faint); font-size: 12.5px; background: transparent;
+    transition: border-color .12s, background .12s, color .12s;
+  }
+  .toggle-pill .dot { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--border-active); flex-shrink: 0; transition: background .12s; }
+  .toggle-pill.on { border-color: var(--accent-dim); background: var(--accent-tint); color: var(--accent); }
+  .toggle-pill.on .dot { background: var(--accent); }
 
   button.primary {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    background: var(--accent-dim);
-    color: #d9f2e6;
-    border: 1px solid var(--accent);
-    border-radius: 3px;
-    padding: 9px 16px;
-    cursor: pointer;
+    font-family: var(--mono); font-size: 14px; font-weight: 500; background: var(--accent); color: var(--accent-ink);
+    border: 0; border-radius: var(--radius-control); padding: 12px 22px; cursor: pointer;
   }
-  button.primary:hover { background: var(--accent); color: #0d1310; }
-
+  button.primary:hover { background: var(--accent-hover); }
   button.ghost {
-    font-family: var(--mono);
-    font-size: 13px;
-    background: transparent;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 9px 14px;
-    cursor: pointer;
+    font-family: var(--mono); font-size: 13px; background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border-active); border-radius: var(--radius-control); padding: 12px 18px; cursor: pointer;
   }
-  button.ghost:hover { border-color: var(--border-active); color: var(--text); }
-
-  .output { min-height: 40px; }
-
-  .line {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    margin-bottom: 6px;
+  button.ghost:hover { background: var(--panel-nested); }
+  button.subtle {
+    font-family: var(--mono); font-size: 13px; background: transparent; color: var(--text-faint);
+    border: 1px solid transparent; border-radius: var(--radius-control); padding: 12px 12px; cursor: pointer;
   }
-
-  .line .prompt { color: var(--accent); flex-shrink: 0; }
-  .line .value { flex: 1; font-size: 14px; word-break: break-all; color: var(--text); white-space: pre-wrap; }
-
-  .line button.copy {
-    flex-shrink: 0;
-    font-family: var(--mono);
-    font-size: 11px;
-    background: transparent;
-    color: var(--text-faint);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 5px 8px;
-    cursor: pointer;
+  button.subtle:hover { color: var(--danger); }
+  button.copy {
+    font-family: var(--mono); font-size: 12px; background: var(--panel-nested); color: var(--text-dim);
+    border: 1px solid var(--border-active); border-radius: 8px; padding: 7px 12px; cursor: pointer;
   }
-  .line button.copy:hover { color: var(--accent); border-color: var(--accent-dim); }
-  .line button.copy.copied { color: var(--accent); }
+  button.copy:hover { border-color: var(--accent-dim); color: var(--accent); }
+  button.copy.copied { color: var(--accent); border-color: var(--accent-dim); }
 
-  .meta { font-size: 12px; color: var(--text-faint); padding: 0 2px; margin-top: 4px; line-height: 1.6; }
-  .meta .weak { color: var(--danger); }
+  .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+  .report-cell { display: flex; flex-direction: column; gap: 4px; }
+  .report-cell .lbl { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+  .report-cell .val { font-size: 14.5px; color: var(--text); word-break: break-all; }
 
-  .decode-box {
-    font-size: 13px;
-    line-height: 1.9;
-    white-space: pre-wrap;
-  }
-  .decode-box .k { color: var(--text-faint); }
-  .decode-box .v { color: var(--accent); }
-  .decode-box.err { color: var(--danger); }
+  footer { margin-top: 14px; font-size: 12.5px; color: var(--text-faint); line-height: 1.7; }
+  footer a { color: var(--accent); text-decoration: none; border-bottom: 1px solid oklch(0.78 0.13 168 / 0.35); }
+  footer a:hover { color: var(--accent-hover); }
+  footer code { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
 
-  footer { margin-top: 28px; font-size: 12px; color: var(--text-faint); line-height: 1.7; }
-  footer a { color: var(--text-dim); }
-
-  .empty { color: var(--text-faint); font-size: 13px; padding: 4px 2px; }
-
-  @media (max-width: 420px) { .opts { gap: 8px 14px; } }
+  @media (max-width: 420px) { .opts { gap: 12px 16px; } }
 </style>
 </head>
 <body>
-<nav class="toolset-nav">
-  <a href="./index.html" class="active">genid</a>
-  <a href="./devkit.html">devkit</a>
-</nav>
 <div class="wrap">
 
   <header>
-    <div>
-      <div class="name">genid<span class="dot">.</span>web</div>
-      <div class="tag">random data, generated in your browser</div>
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span class="name">genid<span class="dot">.</span>web</span>
+      <span class="badge">offline-capable</span>
     </div>
+    <nav class="pages">
+      <span class="current">genid</span>
+      <a href="./devkit.html">devkit</a>
+    </nav>
   </header>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span class="eyebrow" id="outputTitle">output — password</span>
+      <span class="status" id="statusLine">ready</span>
+    </div>
+    <div id="results"></div>
+    <div class="entropy-row hidden" id="entropyRow">
+      <span class="bits" id="entropyBits">0<span class="unit">bits</span></span>
+      <div class="entropy-bar"><div class="fill" id="entropyFill"></div></div>
+      <span class="verdict" id="entropyVerdict"></span>
+    </div>
+    <div class="actions">
+      <button class="primary" id="generateBtn">Generate<span class="kbd">↵</span></button>
+      <button class="ghost" id="copyAllBtn">copy all</button>
+      <button class="subtle" id="clearBtn">clear</button>
+    </div>
+  </div>
 
   <nav class="cmds" id="cmds"></nav>
 
-  <div class="panel">
+  <div class="panel builder">
+    <span class="eyebrow" id="optionsTitle">options</span>
     <div class="opts" id="opts"></div>
+    <div class="toggles hidden" id="toggles"></div>
   </div>
 
-  <div class="actions">
-    <button class="primary" id="generateBtn">Generate</button>
-    <button class="ghost" id="copyAllBtn">Copy all</button>
-    <button class="ghost" id="clearBtn">Clear</button>
-  </div>
-
-  <div class="output" id="output">
-    <div class="empty">— результат появится здесь —</div>
+  <div class="panel hidden" id="reportPanel">
+    <div class="report-grid" id="reportGrid"></div>
   </div>
 
   <footer>
-    Всё выполняется локально, через Web Crypto API (<code>crypto.getRandomValues</code>).
-    Ничего не отправляется на сервер — можно отключить интернет после загрузки страницы.<br>
+    Всё выполняется локально, через Web Crypto API (<code>crypto.getRandomValues</code>). Ничего не отправляется на сервер — можно отключить интернет после загрузки страницы.<br>
     Оригинальный CLI: <a href="https://github.com/rjusm/genid" target="_blank" rel="noopener">genid.sh</a>
   </footer>
 
@@ -258,7 +234,6 @@
 (function () {
   "use strict";
 
-  // No-op outside Telegram — only activates when opened as a Telegram Mini App.
   if (window.Telegram && window.Telegram.WebApp) {
     Telegram.WebApp.ready();
     Telegram.WebApp.expand();
@@ -272,8 +247,6 @@
     return b;
   }
 
-  // Unbiased integer in [0, maxExclusive) via rejection sampling — mirrors
-  // rand_index() in genid.sh (uses as many bytes as needed, not just one).
   function randomInt(maxExclusive) {
     if (maxExclusive <= 1) return 0;
     let bytesNeeded = 1, range = 256;
@@ -287,31 +260,13 @@
     }
   }
 
-  function randomChar(charset) {
-    return charset[randomInt(charset.length)];
-  }
+  function randomChar(charset) { return charset[randomInt(charset.length)]; }
+  function randomString(charset, length) { let out = ""; for (let i = 0; i < length; i++) out += randomChar(charset); return out; }
+  function toHex(bytes) { return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join(""); }
+  function toBase64(bytes) { let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin); }
+  function filterOutChars(str, exclude) { return str.split("").filter(c => exclude.indexOf(c) === -1).join(""); }
 
-  function randomString(charset, length) {
-    let out = "";
-    for (let i = 0; i < length; i++) out += randomChar(charset);
-    return out;
-  }
-
-  function toHex(bytes) {
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
-  }
-
-  function toBase64(bytes) {
-    let bin = "";
-    bytes.forEach(b => bin += String.fromCharCode(b));
-    return btoa(bin);
-  }
-
-  function filterOutChars(str, exclude) {
-    return str.split("").filter(c => exclude.indexOf(c) === -1).join("");
-  }
-
-  // ---------- charsets ----------
+  // ---------- charsets & word lists ----------
 
   const SETS = {
     lower: "abcdefghijklmnopqrstuvwxyz",
@@ -319,12 +274,10 @@
     digits: "0123456789",
     symbols: "!@#$%^&*()-_=+[]{}?",
   };
-  // matches genid.sh's `tr -d -- 'loIO01'`
-  const AMBIGUOUS = "loIO01";
-
+  const AMBIGUOUS = "loIO01"; // matches genid.sh's `tr -d -- 'loIO01'`
   function stripAmbiguous(s) { return filterOutChars(s, AMBIGUOUS); }
 
-  const STRENGTH_LENGTH = { low: 12, medium: 16, high: 20, paranoid: 32 };
+  const PRESETS = { quick: 16, standard: 24, strong: 32, paranoid: 64 };
 
   const ADJ = ["brave","calm","dusty","eager","fuzzy","giant","happy","icy","jolly","keen",
     "lively","misty","noble","odd","proud","quiet","rapid","sharp","tidy","urban",
@@ -369,481 +322,473 @@
     + "wide wind windy wise wolf wren wrench yellow zebra zipper").split(" ");
 
   const CROCKFORD32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-
   function crockfordEncode(value, nchars) {
     let out = "";
-    for (let i = nchars - 1; i >= 0; i--) {
-      const idx = Math.floor(value / Math.pow(2, i * 5)) % 32;
-      out += CROCKFORD32[idx];
-    }
+    for (let i = nchars - 1; i >= 0; i--) out += CROCKFORD32[Math.floor(value / Math.pow(2, i * 5)) % 32];
     return out;
   }
 
-  // ---------- generators ----------
+  // ---------- kinds ----------
 
-  function genPassword(opts) {
-    if (opts.mode === "passphrase") {
-      const words = Math.max(2, opts.words || 5);
-      const sep = opts.phraseSep || "-";
-      const parts = [];
-      for (let i = 0; i < words; i++) parts.push(PASSPHRASE_WORDS[randomInt(PASSPHRASE_WORDS.length)]);
-      const value = parts.join(sep);
-      const bits = Math.round(words * Math.log2(PASSPHRASE_WORDS.length) * 10) / 10;
-      return { value, meta: opts.quiet ? "" : `wordlist=${PASSPHRASE_WORDS.length}, words=${words}, ~${bits} bits entropy` };
-    }
+  const KINDS = [
+    { id: "password", label: "password", hint: "strong secrets", blurb: "CSPRNG characters, guaranteed class mix" },
+    { id: "passphrase", label: "passphrase", hint: "words you can say", blurb: "real dictionary words, easy to remember" },
+    { id: "username", label: "username", hint: "handles", blurb: "adjective + noun + digits" },
+    { id: "uuid", label: "uuid", hint: "v4 / v7", blurb: "RFC 4122 / draft v7" },
+    { id: "ulid", label: "ulid", hint: "sortable id", blurb: "timestamp + randomness, Crockford b32" },
+    { id: "hex", label: "hex", hint: "raw bytes", blurb: "hexadecimal byte string" },
+    { id: "base64", label: "base64", hint: "encoded bytes", blurb: "standard or URL-safe alphabet" },
+    { id: "token", label: "token", hint: "api keys", blurb: "prefixed base62 secret" },
+    { id: "inspect", label: "inspect", hint: "analyse a string", blurb: "format, entropy, likely type" },
+  ];
 
-    let classes;
-    if (opts.charset) {
-      classes = [opts.charset];
-    } else {
-      const useSymbols = opts.strength === "low" ? false : opts.useSymbols;
-      classes = [SETS.lower, SETS.upper, SETS.digits];
-      if (useSymbols) classes.push(SETS.symbols);
-    }
-    if (opts.noAmbiguous) classes = classes.map(stripAmbiguous);
-    if (opts.excludeChars) classes = classes.map(c => filterOutChars(c, opts.excludeChars));
-    if (classes.some(c => c.length === 0)) {
-      return { value: "(error: a character class is empty once filters are applied)", meta: "" };
-    }
+  // ---------- generators (each returns { value, bits }) ----------
 
+  function genPassword(o) {
+    let classes = [SETS.lower, SETS.upper, SETS.digits];
+    if (o.symbols) classes.push(SETS.symbols);
+    if (o.noAmbiguous) classes = classes.map(stripAmbiguous);
+    if (o.exclude) classes = classes.map(c => filterOutChars(c, o.exclude));
+    if (classes.some(c => c.length === 0)) return { value: "(error: a character class is empty once filters are applied)", bits: 0 };
     const charset = classes.join("");
-    const nclasses = classes.length;
-    const length = opts.length || STRENGTH_LENGTH[opts.strength];
-    if (length < nclasses) {
-      return { value: `(error: length ${length} too short for ${nclasses} required classes)`, meta: "" };
-    }
-
+    const length = o.preset === "custom" ? Math.max(classes.length, o.length || 24) : PRESETS[o.preset];
     const pass = classes.map(c => c[randomInt(c.length)]);
-    for (let i = 0; i < length - nclasses; i++) pass.push(charset[randomInt(charset.length)]);
-    for (let i = pass.length - 1; i > 0; i--) {
-      const j = randomInt(i + 1);
-      [pass[i], pass[j]] = [pass[j], pass[i]];
+    for (let i = 0; i < length - classes.length; i++) pass.push(charset[randomInt(charset.length)]);
+    for (let i = pass.length - 1; i > 0; i--) { const j = randomInt(i + 1); [pass[i], pass[j]] = [pass[j], pass[i]]; }
+    const bits = Math.round(length * Math.log2(charset.length) * 10) / 10;
+    return { value: pass.join(""), bits };
+  }
+
+  function genPassphrase(o) {
+    const words = Math.max(2, o.words || 5);
+    const parts = [];
+    for (let i = 0; i < words; i++) {
+      let w = PASSPHRASE_WORDS[randomInt(PASSPHRASE_WORDS.length)];
+      if (o.capitalize) w = w[0].toUpperCase() + w.slice(1);
+      parts.push(w);
     }
-    const value = pass.join("");
-    const bits = Math.floor(length * Math.log2(charset.length) * 10) / 10;
-    return { value, meta: opts.quiet ? "" : `charset=${charset.length}, length=${length}, ~${bits} bits estimated max entropy` };
+    const bits = Math.round(words * Math.log2(PASSPHRASE_WORDS.length) * 10) / 10;
+    return { value: parts.join(o.phraseSep || "-"), bits };
   }
 
-  function genUsername(opts) {
-    if (opts.mode === "words") {
-      const a = ADJ[randomInt(ADJ.length)];
-      const n = NOUN[randomInt(NOUN.length)];
-      const num = randomInt(90) + 10;
-      const sep = opts.sep || "-";
-      return { value: `${a}${sep}${n}${sep}${num}`, meta: "mode: words" };
+  function genUsername(o) {
+    const digitSuffix = o.digits > 0 ? String(randomInt(Math.pow(10, o.digits))).padStart(o.digits, "0") : "";
+    const digitBits = o.digits > 0 ? o.digits * Math.log2(10) : 0;
+    if (o.style === "handle") {
+      const bits = Math.round((Math.log2(NOUN.length) + digitBits) * 10) / 10;
+      return { value: NOUN[randomInt(NOUN.length)] + digitSuffix, bits };
     }
-    const charset = SETS.lower + SETS.upper + SETS.digits;
-    const length = opts.length || 10;
-    return { value: randomString(charset, length), meta: `mode: random, length ${length}` };
+    const bits = Math.round((Math.log2(ADJ.length) + Math.log2(NOUN.length) + digitBits) * 10) / 10;
+    if (o.style === "codename") {
+      return { value: (ADJ[randomInt(ADJ.length)] + "_" + NOUN[randomInt(NOUN.length)]).toUpperCase() + digitSuffix, bits };
+    }
+    return { value: ADJ[randomInt(ADJ.length)] + (o.usernameSep || "-") + NOUN[randomInt(NOUN.length)] + digitSuffix, bits };
   }
 
-  function bytesToUuid(bytes) {
-    const h = toHex(bytes);
-    return [h.slice(0,8), h.slice(8,12), h.slice(12,16), h.slice(16,20), h.slice(20)].join("-");
-  }
-
-  function genUuid(opts) {
-    if (opts.version === "7") {
+  function genUuid(o) {
+    const bytes = randomBytes(16);
+    if (o.uuidVersion === "7") {
       const ts = Date.now();
       const tsHex = ts.toString(16).padStart(12, "0");
-      const bytes = new Uint8Array(16);
       for (let i = 0; i < 6; i++) bytes[i] = parseInt(tsHex.substr(i * 2, 2), 16);
-      bytes.set(randomBytes(10), 6);
       bytes[6] = (bytes[6] & 0x0f) | 0x70;
-      bytes[8] = (bytes[8] & 0x3f) | 0x80;
-      return { value: bytesToUuid(bytes), meta: "UUID v7 — time-ordered, sortable" };
+    } else {
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
     }
-    const bytes = randomBytes(16);
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    return { value: bytesToUuid(bytes), meta: "UUID v4 — random" };
+    const h = toHex(bytes);
+    let v = [h.slice(0,8), h.slice(8,12), h.slice(12,16), h.slice(16,20), h.slice(20)].join("-");
+    if (o.uuidUpper) v = v.toUpperCase();
+    return { value: v, bits: o.uuidVersion === "7" ? 74 : 122 };
   }
 
-  function genUlid() {
+  function genUlid(o) {
     const ms = Date.now();
     const tsPart = crockfordEncode(ms, 10);
     const r1 = randomBytes(5).reduce((v, b) => v * 256 + b, 0);
     const r2 = randomBytes(5).reduce((v, b) => v * 256 + b, 0);
-    const value = tsPart + crockfordEncode(r1, 8) + crockfordEncode(r2, 8);
-    return { value, meta: "ULID — Crockford-base32, sortable, same timestamp source as uuid v7" };
+    let v = tsPart + crockfordEncode(r1, 8) + crockfordEncode(r2, 8);
+    if (o.ulidUpper === false) v = v.toLowerCase();
+    return { value: v, bits: 80 };
   }
 
-  function genHex(opts) {
-    let bytes = opts.bytes || 32;
-    let targetLen = null;
-    if (opts.unit === "length") {
-      targetLen = opts.value || 64;
-      bytes = Math.ceil(targetLen / 2);
-    } else {
-      bytes = opts.value || 32;
-    }
-    let hex = toHex(randomBytes(bytes));
-    if (targetLen !== null) hex = hex.slice(0, targetLen);
-    return { value: hex, meta: `${bytes} bytes${targetLen !== null ? ` → truncated to ${targetLen} chars` : ` → ${bytes * 2} hex chars`}` };
+  function genHex(o) {
+    const n = o.hexBytes || 32;
+    let v = toHex(randomBytes(n));
+    if (o.hexUpper) v = v.toUpperCase();
+    if (o.hexPrefix) v = "0x" + v;
+    return { value: v, bits: n * 8 };
   }
 
-  function genBase64(opts) {
-    const n = opts.bytes || 32;
-    return { value: toBase64(randomBytes(n)), meta: `${n} bytes → base64` };
+  function genBase64Kind(o) {
+    const n = o.b64Bytes || 32;
+    let v = toBase64(randomBytes(n));
+    if (o.b64UrlSafe) v = v.replace(/\+/g, "-").replace(/\//g, "_");
+    if (!o.b64Padding) v = v.replace(/=+$/, "");
+    return { value: v, bits: n * 8 };
   }
 
-  function genToken(opts) {
-    let charset = opts.charset || "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    if (opts.excludeChars) charset = filterOutChars(charset, opts.excludeChars);
-    if (!charset) return { value: "(error: --exclude-chars removed every character from the charset)", meta: "" };
-    const length = opts.length || 32;
-    return { value: randomString(charset, length), meta: `URL-safe alphabet size ${charset.length}, length ${length}` };
+  function genToken(o) {
+    const bytesEq = o.tokenBytes || 32;
+    const bodyLen = Math.max(8, Math.round(bytesEq * 1.34));
+    const B62 = SETS.digits + SETS.upper + SETS.lower;
+    const body = randomString(B62, bodyLen);
+    return { value: (o.tokenPrefix ? o.tokenPrefix + "_" : "") + body, bits: bytesEq * 8 };
   }
 
-  function decodeInspect(raw) {
-    const value = (raw || "").trim();
-    const lower = value.toLowerCase();
-    const upper = value.toUpperCase();
-
-    if (lower.length === 36 && lower[8] === "-" && lower[13] === "-" && lower[18] === "-" && lower[23] === "-") {
-      const stripped = lower.replace(/-/g, "");
-      if (/^[0-9a-f]{32}$/.test(stripped)) {
-        const version = stripped[12];
-        let out = `Format: UUID\nVersion: ${version}\n`;
-        if (version === "7") {
-          const ms = parseInt(stripped.slice(0, 12), 16);
-          out += `Timestamp: ${new Date(ms).toISOString().replace("T", " ").replace("Z", " UTC")}`;
-        } else {
-          out += `Timestamp: not embedded (only UUIDv7 carries one; this is v${version})`;
-        }
-        return out;
-      }
-    }
-
-    if (upper.length === 26 && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(upper)) {
-      const tsChars = upper.slice(0, 10);
-      let val = 0;
-      for (const c of tsChars) val = val * 32 + CROCKFORD32.indexOf(c);
-      const ms = val % Math.pow(2, 48);
-      return `Format: ULID\nTimestamp: ${new Date(ms).toISOString().replace("T", " ").replace("Z", " UTC")}`;
-    }
-
-    return null;
-  }
-
-  // ---------- command definitions ----------
-
-  const SHARED_FIELDS = [
-    { key: "envName", type: "text", label: "env name (-E)", default: "", wide: false, placeholder: "e.g. DB_PASSWORD" },
-    { key: "nullSep", type: "checkbox", label: "NUL-separated on Copy all (-0)", default: false },
-  ];
-
-  const COMMANDS = {
-    password: {
-      label: "password",
-      fields: [
-        { key: "mode", type: "select", label: "mode", options: [["standard","standard"],["passphrase","passphrase"]], default: "standard" },
-        { key: "strength", type: "select", label: "strength", options: [["low","low"],["medium","medium"],["high","high"],["paranoid","paranoid"]], default: "medium", showIf: v => v.mode === "standard" },
-        { key: "length", type: "number", label: "length (override)", default: null, min: 1, max: 256, allowEmpty: true, showIf: v => v.mode === "standard" },
-        { key: "useSymbols", type: "checkbox", label: "symbols", default: true, showIf: v => v.mode === "standard" && v.strength !== "low" },
-        { key: "noAmbiguous", type: "checkbox", label: "no ambiguous (-A)", default: false, showIf: v => v.mode === "standard" },
-        { key: "charset", type: "text", label: "charset (-C, overrides classes)", default: "", showIf: v => v.mode === "standard" },
-        { key: "excludeChars", type: "text", label: "exclude chars (-X)", default: "", showIf: v => v.mode === "standard" },
-        { key: "words", type: "number", label: "words", default: 5, min: 2, max: 20, showIf: v => v.mode === "passphrase" },
-        { key: "phraseSep", type: "text", label: "separator", default: "-", showIf: v => v.mode === "passphrase" },
-        { key: "quiet", type: "checkbox", label: "quiet (-q, hide entropy)", default: false },
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genPassword,
-    },
-    username: {
-      label: "username",
-      fields: [
-        { key: "mode", type: "select", label: "mode", options: [["random","random"],["words","words"]], default: "random" },
-        { key: "length", type: "number", label: "length", default: 10, min: 4, max: 32, showIf: v => v.mode === "random" },
-        { key: "sep", type: "text", label: "separator", default: "-", showIf: v => v.mode === "words" },
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genUsername,
-    },
-    uuid: {
-      label: "uuid",
-      fields: [
-        { key: "version", type: "select", label: "version", options: [["4","v4"],["7","v7"]], default: "4" },
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genUuid,
-    },
-    ulid: {
-      label: "ulid",
-      fields: [
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genUlid,
-    },
-    hex: {
-      label: "hex",
-      fields: [
-        { key: "unit", type: "select", label: "unit", options: [["bytes","bytes (-b)"],["length","hex chars (-l)"]], default: "bytes" },
-        { key: "value", type: "number", label: "value", default: 32, min: 1, max: 512 },
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genHex,
-    },
-    base64: {
-      label: "base64",
-      fields: [
-        { key: "bytes", type: "number", label: "bytes (-b)", default: 32, min: 1, max: 256 },
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genBase64,
-    },
-    token: {
-      label: "token",
-      fields: [
-        { key: "length", type: "number", label: "length (-l)", default: 32, min: 8, max: 256 },
-        { key: "charset", type: "text", label: "charset (-C)", default: "" },
-        { key: "excludeChars", type: "text", label: "exclude chars (-X)", default: "" },
-        { key: "count", type: "number", label: "count", default: 1, min: 1, max: 20 },
-      ],
-      run: genToken,
-    },
-    inspect: {
-      label: "inspect",
-      special: true,
-      fields: [
-        { key: "value", type: "text", label: "UUID or ULID", default: "", wide: true, placeholder: "paste a UUID or ULID to decode" },
-      ],
-    },
+  const GENERATORS = {
+    password: genPassword, passphrase: genPassphrase, username: genUsername,
+    uuid: genUuid, ulid: genUlid, hex: genHex, base64: genBase64Kind, token: genToken,
   };
 
-  // add shared -E/-0 fields to every generating command (not inspect)
-  Object.keys(COMMANDS).forEach(k => {
-    if (!COMMANDS[k].special) COMMANDS[k].fields.push(...SHARED_FIELDS);
-  });
+  // ---------- inspect: precise UUID/ULID decode + general string analysis ----------
 
-  // ---------- UI wiring ----------
+  function analyseString(raw) {
+    const s = (raw || "").trim();
+    if (!s) return null;
 
-  let current = "password";
-  const state = {};
-  Object.keys(COMMANDS).forEach(k => {
-    state[k] = {};
-    COMMANDS[k].fields.forEach(f => state[k][f.key] = f.default);
-  });
+    let structural = null;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) {
+      const stripped = s.toLowerCase().replace(/-/g, "");
+      const version = stripped[12];
+      let timestamp = null;
+      if (version === "7") {
+        const ms = parseInt(stripped.slice(0, 12), 16);
+        timestamp = new Date(ms).toISOString().replace("T", " ").replace("Z", " UTC");
+      }
+      structural = { kind: "UUID", label: "UUID v" + version, version, timestamp };
+    } else if (/^[0-9A-HJKMNP-TV-Z]{26}$/i.test(s)) {
+      const upper = s.toUpperCase();
+      let val = 0;
+      for (const c of upper.slice(0, 10)) val = val * 32 + CROCKFORD32.indexOf(c);
+      const ms = val % Math.pow(2, 48);
+      structural = { kind: "ULID", label: "ULID", timestamp: new Date(ms).toISOString().replace("T", " ").replace("Z", " UTC") };
+    }
 
-  let lastGenerated = []; // for "copy all"
+    let size = 0;
+    if (/[a-z]/.test(s)) size += 26;
+    if (/[A-Z]/.test(s)) size += 26;
+    if (/[0-9]/.test(s)) size += 10;
+    const others = new Set(s.split("").filter(c => !/[a-zA-Z0-9]/.test(c)));
+    size += others.size;
+
+    let guess = structural ? structural.label : "opaque string";
+    if (!structural) {
+      const bare = s.replace(/^0x/i, "");
+      if (/^[0-9a-f]+$/i.test(bare) && bare.length % 2 === 0) guess = "hex (" + (bare.length / 2) + " bytes)";
+      else if (/^[a-z]+([-_][a-z]+){1,8}$/i.test(s)) guess = "passphrase / handle";
+      else if (/^[a-z][a-z0-9]*(_[a-z0-9]+)*_[A-Za-z0-9]{16,}$/i.test(s)) guess = "prefixed API token";
+      else if (/^[A-Za-z0-9+/]+={0,2}$/.test(s) && s.length % 4 === 0) guess = "base64";
+      else if (/^[A-Za-z0-9_-]+={0,2}$/.test(s) && /[-_]/.test(s)) guess = "base64url";
+    }
+
+    const bits = Math.round(Math.log2(Math.max(size, 2)) * s.length * 10) / 10;
+    return { s, size, bits, guess, unique: new Set(s.split("")).size, structural };
+  }
+
+  // ---------- field/toggle descriptors per kind ----------
+
+  function sel(id, label, value, options) { return { id, label, kind: "select", value, options }; }
+  function num(id, label, value, min, max) { return { id, label, kind: "number", value, min, max }; }
+  function txt(id, label, value, placeholder, wide) { return { id, label, kind: "text", value, placeholder, wide }; }
+  function area(id, label, value, placeholder) { return { id, label, kind: "textarea", value, placeholder, wide: true }; }
+
+  function fieldsFor(kind, o) {
+    if (kind === "password") return [
+      sel("preset", "strength", o.preset, [["quick","quick · 16"],["standard","standard · 24"],["strong","strong · 32"],["paranoid","paranoid · 64"],["custom","custom"]]),
+      ...(o.preset === "custom" ? [num("length", "length", o.length, 4, 256)] : []),
+      txt("exclude", "exclude chars", o.exclude, "e.g. {}[]"),
+      num("count", "count", o.count, 1, 50),
+    ];
+    if (kind === "passphrase") return [
+      num("words", "words", o.words, 2, 12),
+      txt("phraseSep", "separator", o.phraseSep, "-"),
+      num("count", "count", o.count, 1, 50),
+    ];
+    if (kind === "username") return [
+      sel("style", "style", o.style, [["adjnoun","adjective-noun"],["handle","single word"],["codename","CODENAME"]]),
+      num("digits", "digits", o.digits, 0, 6),
+      ...(o.style === "adjnoun" ? [txt("usernameSep", "separator", o.usernameSep, "-")] : []),
+      num("count", "count", o.count, 1, 50),
+    ];
+    if (kind === "uuid") return [sel("uuidVersion", "version", o.uuidVersion, [["4","v4 · random"],["7","v7 · time-sortable"]]), num("count", "count", o.count, 1, 50)];
+    if (kind === "ulid") return [num("count", "count", o.count, 1, 50)];
+    if (kind === "hex") return [num("hexBytes", "bytes", o.hexBytes, 1, 512), num("count", "count", o.count, 1, 50)];
+    if (kind === "base64") return [num("b64Bytes", "bytes", o.b64Bytes, 1, 512), num("count", "count", o.count, 1, 50)];
+    if (kind === "token") return [txt("tokenPrefix", "prefix", o.tokenPrefix, "sk"), num("tokenBytes", "entropy bytes", o.tokenBytes, 8, 128), num("count", "count", o.count, 1, 50)];
+    if (kind === "inspect") return [area("subject", "string to inspect", o.subject, "paste a key, token, uuid…")];
+    return [];
+  }
+
+  function togglesFor(kind, o) {
+    if (kind === "password") return [["symbols", "symbols", o.symbols], ["noAmbiguous", "no ambiguous chars", o.noAmbiguous]];
+    if (kind === "passphrase") return [["capitalize", "capitalize words", o.capitalize]];
+    if (kind === "uuid") return [["uuidUpper", "uppercase", o.uuidUpper]];
+    if (kind === "ulid") return [["ulidUpper", "uppercase", o.ulidUpper]];
+    if (kind === "hex") return [["hexUpper", "uppercase", o.hexUpper], ["hexPrefix", "0x prefix", o.hexPrefix]];
+    if (kind === "base64") return [["b64UrlSafe", "url-safe alphabet", o.b64UrlSafe], ["b64Padding", "keep padding", o.b64Padding]];
+    return [];
+  }
+
+  // ---------- state ----------
+
+  let currentKind = "password";
+  let lastResults = [];
+  let lastEntropy = null;
+  let copiedIdx = null;
+  let copiedAll = false;
+  let copyResetTimer = null;
+
+  const opts = {
+    preset: "standard", length: 24, symbols: true, noAmbiguous: true, exclude: "",
+    words: 5, phraseSep: "-", capitalize: false,
+    style: "adjnoun", digits: 2, usernameSep: "-",
+    uuidVersion: "4", uuidUpper: false,
+    ulidUpper: true,
+    hexBytes: 32, hexUpper: false, hexPrefix: false,
+    b64Bytes: 32, b64UrlSafe: false, b64Padding: false,
+    tokenPrefix: "sk", tokenBytes: 32,
+    subject: "",
+    count: 1,
+  };
 
   const cmdsEl = document.getElementById("cmds");
   const optsEl = document.getElementById("opts");
-  const outputEl = document.getElementById("output");
+  const togglesEl = document.getElementById("toggles");
+  const resultsEl = document.getElementById("results");
+  const entropyRowEl = document.getElementById("entropyRow");
+  const entropyBitsEl = document.getElementById("entropyBits");
+  const entropyFillEl = document.getElementById("entropyFill");
+  const entropyVerdictEl = document.getElementById("entropyVerdict");
+  const outputTitleEl = document.getElementById("outputTitle");
+  const optionsTitleEl = document.getElementById("optionsTitle");
+  const statusLineEl = document.getElementById("statusLine");
+  const reportPanelEl = document.getElementById("reportPanel");
+  const reportGridEl = document.getElementById("reportGrid");
+  const generateBtn = document.getElementById("generateBtn");
 
-  function renderCmds() {
-    cmdsEl.innerHTML = "";
-    Object.keys(COMMANDS).forEach(key => {
-      const btn = document.createElement("button");
-      btn.textContent = COMMANDS[key].label;
-      btn.className = key === current ? "active" : "";
-      btn.addEventListener("click", () => {
-        current = key;
-        renderCmds();
-        renderOpts();
-        outputEl.innerHTML = '<div class="empty">— результат появится здесь —</div>';
-        lastGenerated = [];
-        document.getElementById("generateBtn").textContent = COMMANDS[key].special ? "Decode" : "Generate";
-      });
-      cmdsEl.appendChild(btn);
-    });
+  function copyText(text, onDone) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(onDone).catch(() => legacyCopy(text) && onDone());
+    } else {
+      if (legacyCopy(text)) onDone();
+    }
   }
-
-  function renderOpts() {
-    optsEl.innerHTML = "";
-    const cmd = COMMANDS[current];
-    cmd.fields.forEach(f => {
-      if (f.showIf && !f.showIf(state[current])) return;
-
-      const wrap = document.createElement("div");
-      wrap.className = "opt" + (f.type === "checkbox" ? " checkbox" : "") + (f.wide ? " wide" : "");
-
-      if (f.type === "select") {
-        const label = document.createElement("label");
-        label.textContent = f.label;
-        const select = document.createElement("select");
-        f.options.forEach(([val, text]) => {
-          const o = document.createElement("option");
-          o.value = val; o.textContent = text;
-          if (val === state[current][f.key]) o.selected = true;
-          select.appendChild(o);
-        });
-        select.addEventListener("change", () => {
-          state[current][f.key] = select.value;
-          renderOpts();
-        });
-        wrap.appendChild(label);
-        wrap.appendChild(select);
-      } else if (f.type === "number") {
-        const label = document.createElement("label");
-        label.textContent = f.label;
-        const input = document.createElement("input");
-        input.type = "number";
-        input.min = f.min; input.max = f.max;
-        input.placeholder = f.allowEmpty ? "auto" : "";
-        input.value = state[current][f.key] == null ? "" : state[current][f.key];
-        input.addEventListener("change", () => {
-          if (input.value === "" && f.allowEmpty) { state[current][f.key] = null; return; }
-          let v = parseInt(input.value, 10);
-          if (isNaN(v)) v = f.default;
-          v = Math.max(f.min, Math.min(f.max, v));
-          state[current][f.key] = v;
-          input.value = v;
-        });
-        wrap.appendChild(label);
-        wrap.appendChild(input);
-      } else if (f.type === "text") {
-        const label = document.createElement("label");
-        label.textContent = f.label;
-        const input = document.createElement("input");
-        input.type = "text";
-        if (f.placeholder) input.placeholder = f.placeholder;
-        input.value = state[current][f.key] || "";
-        input.addEventListener("input", () => { state[current][f.key] = input.value; });
-        wrap.appendChild(label);
-        wrap.appendChild(input);
-      } else if (f.type === "checkbox") {
-        const label = document.createElement("label");
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.checked = !!state[current][f.key];
-        input.addEventListener("change", () => { state[current][f.key] = input.checked; });
-        label.appendChild(input);
-        label.appendChild(document.createTextNode(" " + f.label));
-        wrap.appendChild(label);
-      }
-
-      optsEl.appendChild(wrap);
-    });
-  }
-
   function legacyCopy(text) {
-    // Fallback for contexts where navigator.clipboard is unavailable or
-    // blocked (notably: pages opened directly as file://, which most
-    // browsers treat as a non-secure origin for the Clipboard API).
     const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.top = "-1000px";
-    ta.style.left = "-1000px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    ta.setSelectionRange(0, text.length);
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.top = "-1000px";
+    document.body.appendChild(ta); ta.focus(); ta.select();
     let ok = false;
     try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
     document.body.removeChild(ta);
     return ok;
   }
 
-  function copyText(text, btn) {
-    const succeed = () => {
-      btn.textContent = "copied";
-      btn.classList.add("copied");
-      setTimeout(() => { btn.textContent = btn.dataset.label || "copy"; btn.classList.remove("copied"); }, 1200);
-    };
-    const fail = () => {
-      btn.textContent = "select manually";
-      setTimeout(() => { btn.textContent = btn.dataset.label || "copy"; }, 1600);
-    };
-
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(succeed).catch(() => {
-        if (legacyCopy(text)) succeed(); else fail();
+  function renderTabs() {
+    cmdsEl.innerHTML = "";
+    KINDS.forEach(k => {
+      const btn = document.createElement("button");
+      const label = document.createElement("span");
+      label.textContent = k.label;
+      const hint = document.createElement("span");
+      hint.className = "hint";
+      hint.textContent = k.hint;
+      btn.appendChild(label);
+      btn.appendChild(hint);
+      btn.className = k.id === currentKind ? "active" : "";
+      btn.addEventListener("click", () => {
+        currentKind = k.id;
+        lastResults = []; lastEntropy = null; copiedIdx = null; copiedAll = false;
+        renderTabs(); renderOptions(); renderOutput();
+        generateBtn.innerHTML = k.id === "inspect" ? "Analyse<span class=\"kbd\">↵</span>" : "Generate<span class=\"kbd\">↵</span>";
+        if (k.id !== "inspect") run();
       });
-    } else {
-      if (legacyCopy(text)) succeed(); else fail();
-    }
+      cmdsEl.appendChild(btn);
+    });
   }
 
-  function formatLine(value, idx, total, envName) {
-    if (envName) return total > 1 ? `${envName}_${idx}=${value}` : `${envName}=${value}`;
-    return value;
-  }
+  function renderOptions() {
+    const meta = KINDS.find(k => k.id === currentKind);
+    optionsTitleEl.textContent = "options — " + meta.blurb;
+    optsEl.innerHTML = "";
+    fieldsFor(currentKind, opts).forEach(f => {
+      const wrap = document.createElement("label");
+      wrap.className = "opt" + (f.wide ? " wide" : "");
+      const lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = f.label;
+      wrap.appendChild(lbl);
 
-  function runInspect() {
-    outputEl.innerHTML = "";
-    const raw = state.inspect.value || "";
-    const box = document.createElement("div");
-    box.className = "panel decode-box";
-    if (!raw.trim()) {
-      box.textContent = "Вставь UUID или ULID выше и нажми Decode.";
-    } else {
-      const result = decodeInspect(raw);
-      if (result === null) {
-        box.classList.add("err");
-        box.textContent = "unrecognized format: expected a UUID (8-4-4-4-12 hex) or a 26-character ULID";
-      } else {
-        box.textContent = result;
+      if (f.kind === "select") {
+        const select = document.createElement("select");
+        f.options.forEach(([val, text]) => {
+          const o = document.createElement("option");
+          o.value = val; o.textContent = text;
+          if (val === f.value) o.selected = true;
+          select.appendChild(o);
+        });
+        select.addEventListener("change", () => { opts[f.id] = select.value; renderOptions(); if (currentKind !== "inspect") run(); });
+        wrap.appendChild(select);
+      } else if (f.kind === "number") {
+        const input = document.createElement("input");
+        input.type = "number"; input.min = f.min; input.max = f.max; input.value = f.value;
+        input.addEventListener("change", () => {
+          let v = parseInt(input.value, 10);
+          if (isNaN(v)) v = f.min;
+          v = Math.max(f.min, Math.min(f.max, v));
+          opts[f.id] = v; input.value = v;
+          if (currentKind !== "inspect") run();
+        });
+        wrap.appendChild(input);
+      } else if (f.kind === "text") {
+        const input = document.createElement("input");
+        input.type = "text"; input.value = f.value || ""; if (f.placeholder) input.placeholder = f.placeholder;
+        input.addEventListener("input", () => { opts[f.id] = input.value; });
+        input.addEventListener("change", () => { if (currentKind !== "inspect") run(); });
+        wrap.appendChild(input);
+      } else if (f.kind === "textarea") {
+        const ta = document.createElement("textarea");
+        ta.rows = 3; ta.value = f.value || ""; if (f.placeholder) ta.placeholder = f.placeholder;
+        ta.addEventListener("input", () => { opts[f.id] = ta.value; run(); });
+        wrap.appendChild(ta);
       }
-    }
-    outputEl.appendChild(box);
-    lastGenerated = [];
+      optsEl.appendChild(wrap);
+    });
+
+    const toggles = togglesFor(currentKind, opts);
+    togglesEl.innerHTML = "";
+    togglesEl.classList.toggle("hidden", toggles.length === 0);
+    toggles.forEach(([id, label, on]) => {
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "toggle-pill" + (on ? " on" : "");
+      pill.innerHTML = '<span class="dot"></span><span>' + label + "</span>";
+      pill.addEventListener("click", () => { opts[id] = !opts[id]; renderOptions(); if (currentKind !== "inspect") run(); });
+      togglesEl.appendChild(pill);
+    });
   }
 
-  function generate() {
-    const cmd = COMMANDS[current];
-    if (cmd.special) { runInspect(); return; }
-
-    const opts = state[current];
-    const count = opts.count || 1;
-    outputEl.innerHTML = "";
-    lastGenerated = [];
-
-    let lastMeta = "";
-    for (let i = 1; i <= count; i++) {
-      const result = cmd.run(opts);
-      lastMeta = result.meta;
-      const display = formatLine(result.value, i, count, opts.envName);
-      lastGenerated.push(display);
-
-      const line = document.createElement("div");
-      line.className = "line";
-
-      const prompt = document.createElement("span");
-      prompt.className = "prompt";
-      prompt.textContent = ">";
-
-      const value = document.createElement("span");
-      value.className = "value";
-      value.textContent = display;
-
-      const copyBtn = document.createElement("button");
-      copyBtn.className = "copy";
-      copyBtn.textContent = "copy";
-      copyBtn.dataset.label = "copy";
-      copyBtn.addEventListener("click", () => copyText(display, copyBtn));
-
-      line.appendChild(prompt);
-      line.appendChild(value);
-      line.appendChild(copyBtn);
-      outputEl.appendChild(line);
-    }
-
-    if (lastMeta) {
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.textContent = lastMeta;
-      outputEl.appendChild(meta);
-    }
+  function makeCopyBtn(getText, idx) {
+    const btn = document.createElement("button");
+    btn.className = "copy";
+    const isCopied = idx === "all" ? copiedAll : copiedIdx === idx;
+    btn.textContent = isCopied ? "copied ✓" : "copy";
+    btn.addEventListener("click", () => {
+      copyText(getText(), () => {
+        if (idx === "all") copiedAll = true; else copiedIdx = idx;
+        clearTimeout(copyResetTimer);
+        copyResetTimer = setTimeout(() => { copiedAll = false; copiedIdx = null; renderOutput(); }, 1400);
+        renderOutput();
+      });
+    });
+    return btn;
   }
 
-  document.getElementById("generateBtn").addEventListener("click", generate);
+  function renderOutput() {
+    const meta = KINDS.find(k => k.id === currentKind);
+    outputTitleEl.textContent = "output — " + meta.label;
+    statusLineEl.textContent = lastResults.length
+      ? lastResults.length + (lastResults.length === 1 ? " value" : " values") + " · local only"
+      : "ready";
+
+    resultsEl.innerHTML = "";
+    if (lastResults.length === 0) {
+      const box = document.createElement("div");
+      box.className = "empty-box";
+      box.textContent = "— результат появится здесь —";
+      resultsEl.appendChild(box);
+    } else {
+      lastResults.forEach((r, i) => {
+        const row = document.createElement("div");
+        row.className = "result-row";
+        row.innerHTML = '<span class="prompt">&gt;</span>';
+        const code = document.createElement("code");
+        code.textContent = r;
+        row.appendChild(code);
+        row.appendChild(makeCopyBtn(() => r, i));
+        resultsEl.appendChild(row);
+      });
+    }
+
+    if (lastEntropy != null) {
+      entropyRowEl.classList.remove("hidden");
+      entropyBitsEl.innerHTML = lastEntropy + '<span class="unit">bits</span>';
+      const pct = Math.min(100, Math.round((lastEntropy / 160) * 100));
+      entropyFillEl.style.width = pct + "%";
+      entropyFillEl.style.background = lastEntropy >= 80 ? "var(--accent)" : lastEntropy >= 50 ? "var(--warn)" : "var(--danger)";
+      entropyVerdictEl.textContent = lastEntropy >= 128 ? "far beyond brute force" : lastEntropy >= 80 ? "strong for online secrets" : lastEntropy >= 50 ? "fine for low-risk use" : "weak — raise length";
+    } else {
+      entropyRowEl.classList.add("hidden");
+    }
+
+    // copy-all button lives outside this render pass; refresh its label directly
+    const copyAllBtn = document.getElementById("copyAllBtn");
+    copyAllBtn.textContent = copiedAll ? "copied ✓" : "copy all";
+  }
+
+  function renderReport(report) {
+    if (!report) { reportPanelEl.classList.add("hidden"); reportGridEl.innerHTML = ""; return; }
+    reportPanelEl.classList.remove("hidden");
+    reportGridEl.innerHTML = "";
+    report.forEach(row => {
+      const cell = document.createElement("div");
+      cell.className = "report-cell";
+      cell.innerHTML = '<span class="lbl"></span><span class="val"></span>';
+      cell.querySelector(".lbl").textContent = row.label;
+      cell.querySelector(".val").textContent = row.value;
+      reportGridEl.appendChild(cell);
+    });
+  }
+
+  function run() {
+    if (currentKind === "inspect") {
+      const a = analyseString(opts.subject);
+      if (!a) { lastResults = []; lastEntropy = null; renderOutput(); renderReport(null); return; }
+      lastResults = [a.s];
+      lastEntropy = a.bits;
+      const report = [
+        { label: "likely format", value: a.guess },
+        { label: "length", value: a.s.length + " chars" },
+        { label: "charset size", value: "≈ " + a.size },
+        { label: "unique chars", value: a.unique },
+        { label: "entropy", value: "≈ " + a.bits + " bits" },
+      ];
+      if (a.structural && a.structural.timestamp) report.push({ label: a.structural.kind + " timestamp", value: a.structural.timestamp });
+      renderReport(report);
+      renderOutput();
+      return;
+    }
+    renderReport(null);
+    const n = Math.min(50, Math.max(1, Number(opts.count) || 1));
+    const gen = GENERATORS[currentKind];
+    const out = [];
+    let bits = 0;
+    for (let i = 0; i < n; i++) { const r = gen(opts); out.push(r.value); bits = r.bits; }
+    lastResults = out;
+    lastEntropy = bits;
+    renderOutput();
+  }
+
+  generateBtn.addEventListener("click", run);
+  document.getElementById("copyAllBtn").addEventListener("click", () => {
+    if (!lastResults.length) return;
+    copyText(lastResults.join("\n"), () => {
+      copiedAll = true;
+      clearTimeout(copyResetTimer);
+      copyResetTimer = setTimeout(() => { copiedAll = false; renderOutput(); }, 1400);
+      renderOutput();
+    });
+  });
   document.getElementById("clearBtn").addEventListener("click", () => {
-    outputEl.innerHTML = '<div class="empty">— результат появится здесь —</div>';
-    lastGenerated = [];
+    lastResults = []; lastEntropy = null; renderReport(null); renderOutput();
   });
-  document.getElementById("copyAllBtn").addEventListener("click", (e) => {
-    if (!lastGenerated.length) return;
-    const nullSep = state[current] && state[current].nullSep;
-    const joined = lastGenerated.join(nullSep ? "\u0000" : "\n");
-    copyText(joined, e.target);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey || e.target === document.body)) run();
   });
 
-  renderCmds();
-  renderOpts();
+  renderTabs();
+  renderOptions();
+  run();
 })();
 </script>
 </body>
